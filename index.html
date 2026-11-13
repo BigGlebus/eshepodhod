@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v3';
+const APP_VERSION = 'v4';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -91,11 +91,14 @@ const NPC = {
 };
 const BARKS = {
   tolyan: { start: ['Работаем, братиш!', 'Мел возьми, скользко же'], idle: ['Братиш, ты долго ещё?', 'Ты там уснул?'], red: ['О, пошла работа!', 'Терпи, растёшь!'],
-    help: ['Помочь?'], legend: ['КРАСАВЧИК!!!', 'Вот это я понимаю!'], spotted: ['Да я почти сам поднял'], plan: ['План есть. Ещё разок?'], disguise: ['Мы раньше не встречались?'], more: ['ЕЩЁ РАЗОК!'] },
+    help: ['Помочь?'], legend: ['КРАСАВЧИК!!!', 'Вот это я понимаю!'], spotted: ['Да я почти сам поднял'], plan: ['План есть. Ещё разок?'], disguise: ['Мы раньше не встречались?'], more: ['ЕЩЁ РАЗОК!'],
+    call: ['Алло? Да, братиш…', 'Не, я в зале, всё норм…', 'Да не занят, говори'], hangup: ['Чё, звал?', 'О, ты ещё живой'] },
   petrovich: { start: ['Так, без халтуры!', 'Спину ровно!'], idle: ['Не спим, не спим!'], red: ['Ещё! Ещё!'],
-    help: ['Подстраховать?'], legend: ['Пятёрка!'], spotted: ['Два. Садись.'], plan: ['Норматив сдан. Ещё?'], disguise: ['Фамилия? Лицо знакомое'], more: ['ЕЩЁ РАЗОК!'] },
+    help: ['Подстраховать?'], legend: ['Пятёрка!'], spotted: ['Два. Садись.'], plan: ['Норматив сдан. Ещё?'], disguise: ['Фамилия? Лицо знакомое'], more: ['ЕЩЁ РАЗОК!'],
+    call: ['Алло, Петрович слушает', 'Журнал? Заполню, заполню…', 'Какой ещё педсовет?'], hangup: ['Так, на чём мы остановились?'] },
   angela: { start: ['Давай, котик!', 'Сниму для сторис?'], idle: ['Ты живой?'], red: ['Ух ты!'],
-    help: ['Помочь, зайка?'], legend: ['Это в сторис!'], spotted: ['Я тоже жму, если что'], plan: ['Красиво! Ещё?'], disguise: ['Ой, какие у вас усы!'], more: ['ЕЩЁ РАЗОК!'] },
+    help: ['Помочь, зайка?'], legend: ['Это в сторис!'], spotted: ['Я тоже жму, если что'], plan: ['Красиво! Ещё?'], disguise: ['Ой, какие у вас усы!'], more: ['ЕЩЁ РАЗОК!'],
+    call: ['Алло, зай?', 'Да я в зале, тут один тужится…', 'И что он ей ответил?!'], hangup: ['Ой, ты звал, котик?'] },
 };
 const MASK_PRICE = 40;
 
@@ -864,7 +867,12 @@ function makeSounds() {
     let ph = 0, lp1 = 0;
     for (let i = 0; i < n; i++) { const t = i / sr, k = t / 0.75; ph += (95 - 40 * k + 12 * Math.sin(t * 40)) / sr; const pulse = (ph % 1) < 0.18 ? 1 : -0.2; lp1 += (pulse - lp1) * 0.08; d[i] = lp1 * Math.min(1, t / 0.02) * Math.pow(1 - k, 0.7) * (0.6 + 0.4 * Math.sin(t * 150)) * 0.9; }
   });
-  for (const k of ['clank', 'thud', 'tick', 'bulk', 'cheer', 'whistle', 'fart']) normBuf(A.buf[k]);
+  // звонок телефона: два «дзынь» трелью
+  A.buf.ring = synth(1.2, (d, n, sr) => {
+    for (let i = 0; i < n; i++) { const t = i / sr, on = t < 0.42 || (t > 0.62 && t < 1.04); if (!on) { d[i] = 0; continue; }
+      const f = Math.floor(t * 25) % 2 ? 1320 : 1060, w = Math.sin(TAU * f * t), tl = t < 0.42 ? t : t - 0.62; d[i] = (w + 0.3 * Math.sin(3 * TAU * f * t)) * Math.min(1, tl / 0.01) * Math.min(1, (0.42 - tl) / 0.02) * 0.4; }
+  });
+  for (const k of ['clank', 'thud', 'tick', 'bulk', 'cheer', 'whistle', 'fart', 'ring']) normBuf(A.buf[k]);
 }
 // Эхо небольшого зала: голос перестаёт звучать «в вакууме».
 async function addRoom(buf, wet = 0.2) {
@@ -992,7 +1000,7 @@ function startSet(weight, target, tut) {
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null };
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle'), 200);
 }
@@ -1021,9 +1029,15 @@ function answerMore(yes) {
   if (yes) { R.bonus = MORE_K; R.extra++; fx('ЕЩЁ РАЗОК! ×' + MORE_K, P.yellow, 30, 140); }
   else rackBar();
 }
+// В половине дожимов у соседа как раз звонит телефон — болтает и подстраховать не может. Заранее не угадать:
+// решается в момент, когда штанга встала. В обучении звонков нет — сначала надо попробовать страховку.
+let FORCE_CALL = null;
 function enterPush() {
   R.mode = 'push'; R.pushT = 0; R.pressing = false; play('bulk');
-  if (R.spotLeft > 0) bark('help'); else R.bark = null;
+  if (R.call) { R.call.end = 0; R.bark = null; return; }   // ещё не договорил с прошлого раза
+  const callNow = R.spotLeft > 0 && !R.tut && (FORCE_CALL ?? Math.random() < 0.5);
+  if (callNow) { R.call = { t: 0, end: 0 }; R.bark = null; play('ring'); }
+  else if (R.spotLeft > 0) bark('help'); else R.bark = null;
 }
 function pushTap(x, y) {
   R.taps.push({ x, y, t: 0 });
@@ -1034,7 +1048,7 @@ function pushTap(x, y) {
   if (R.pos >= 1) { R.mode = 'lift'; R.fat = 0.94; R.bark = null; S.pushSeen = true; completeRep('legend'); }
 }
 function callSpot() {
-  if (!R || R.spotLeft <= 0) return;
+  if (!R || R.spotLeft <= 0 || R.call) return;
   if (!(R.mode === 'push' || (R.mode === 'lift' && R.pos < 1))) return;
   R.spotLeft--; R.mode = 'spot'; R.spotT = 0; R.spotFrom = R.pos; R.armed = true; R.bark = null; S.pushSeen = true;
 }
@@ -1050,7 +1064,7 @@ function callBro() {
 }
 function rackBar() { if (!R || R.mode !== 'lift') return; R.mode = 'racked'; R.rackT = 0; R.rackFrom = R.pos; R.bark = null; }
 function crash() {
-  R.mode = 'crash'; R.crashT = 0; R.fromPos = R.pos; R.bark = null; R.impact = false; R.bro = null;
+  R.mode = 'crash'; R.crashT = 0; R.fromPos = R.pos; R.bark = null; R.impact = false; R.bro = null; R.call = null;
   if (A && A.broSrc) { try { A.broSrc.stop(); } catch (e) { /* уже */ } A.broSrc = null; }
   S.bans[S.gym] = 3; delete S.disguise[S.gym]; S.crashes++; S.pushSeen = true;
   if (R.tut) S.tutDone = true;
@@ -1099,6 +1113,12 @@ function updateSet(dt) {
   R.fx = R.fx.filter((f) => (f.t += dt) < f.life);
   R.taps = R.taps.filter((f) => (f.t += dt) < 0.45);
   if (R.bro) { R.bro.t += dt; if (R.bro.t >= R.bro.dur) R.bro = null; }
+  // звонок длится весь дожим и ещё полторы секунды после — потом сосед кладёт трубку
+  if (R.call) {
+    R.call.t += dt;
+    if (R.mode !== 'push' && R.mode !== 'motiv' && !R.call.end) R.call.end = R.call.t + 1.5;
+    if (R.call.end && R.call.t >= R.call.end) { R.call = null; if (R.mode === 'lift') bark('hangup'); }
+  }
   const hold = holding();
   if (R.mode === 'lift') {
     if (R.askPending && R.pos >= 1) { R.askPending = false; R.mode = 'ask'; R.askT = 0; R.pressing = false; bark('more'); return; }
@@ -1157,7 +1177,8 @@ const SPX = 100;
 function spotterX() { return R.mode === 'spot' ? SPX + 46 * easeOut(R.spotT / 0.3) : SPX; }
 function drawSpotter() {
   const id = GYMS[S.gym].spot, shock = R.mode === 'push' || R.mode === 'crash';
-  const pose = R.mode === 'spot' || shock ? 'down' : 'cross', mood = shock ? 'shock' : R.mode === 'spot' ? 'focus' : 'smug';
+  let pose = R.mode === 'spot' || shock ? 'down' : 'cross', mood = shock ? 'shock' : R.mode === 'spot' ? 'focus' : 'smug';
+  if (R.call && R.mode !== 'crash') { pose = 'phone'; mood = 'calm'; }   // болтает и ничего не замечает
   g.save(); g.translate(spotterX() - SPX, 0);
   layer('sp-' + id + pose + mood, 0, 60, 250, 330, (c) => person(c, SPX, 388, WS, Object.assign({}, NPC[id], { arms: pose, mood })));
   g.restore();
@@ -1172,6 +1193,13 @@ function barTrack(x, top, bot, t, stuck, armed) {
   blob(g, [{ k: 'ell', x, y: lerp(bot, top, t), rx: 8, ry: 8, c: stuck ? P.red : armed ? P.text : '#8B929C' }], 2);
 }
 function spotBtn(x, y, n, hotS) {
+  if (R.call) {   // сосед на телефоне — кнопка «занята»
+    blob(g, [{ k: 'ell', x, y, rx: 27, ry: 27, c: 'rgba(60,64,72,.95)' }], 2.5);
+    g.save(); g.translate(x, y); g.rotate(-0.5); box(g, -6, -11, 12, 22, 3, '#9AA2AC', INK, 2); g.fillStyle = INK; g.fillRect(-3.5, -7, 7, 12); g.restore();
+    g.strokeStyle = P.bad; g.lineWidth = 3.5; g.lineCap = 'round'; g.beginPath(); g.moveTo(x - 17, y + 17); g.lineTo(x + 17, y - 17); g.stroke();
+    textOl(g, 'НА ТЕЛЕФОНЕ', x + 36, y + 6, font(700, 15, FF.head), P.bad, 5, 'left');
+    return;
+  }
   if (hotS) { g.save(); g.strokeStyle = 'rgba(244,193,46,.55)'; g.lineWidth = 3; const k = (R.t * 2) % 1; for (const r of [34 + k * 10, 44 + k * 10]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); } g.restore(); }
   blob(g, [{ k: 'ell', x, y, rx: 27, ry: 27, c: hotS ? P.yellow : 'rgba(30,33,40,.95)' }], 2.5);
   const col = hotS ? INK : P.text;
@@ -1268,7 +1296,11 @@ function drawSetHud() {
     if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
     if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
-  if (R.bark) bubble(g, spotterX() + 30, 116, R.bark.text, { side: 'right', font: font(700, R.bark.text === 'ЕЩЁ РАЗОК!' ? 18 : 14, FF.body) });
+  if (R.call) {
+    const sx = spotterX();
+    if (R.call.t < 0.8) { const k = Math.sin(R.call.t * 40) * 3; textOl(g, 'дзынь!', sx + 70 + k, 108, font(700, 24, FF.hand), P.yellow, 5, 'center'); }
+    else { const lines = BARKS[GYMS[S.gym].spot].call; bubble(g, sx + 30, 116, lines[Math.floor((R.call.t - 0.8) / 2.4) % lines.length], { side: 'right', font: font(700, 14, FF.body) }); }
+  } else if (R.bark) bubble(g, spotterX() + 30, 116, R.bark.text, { side: 'right', font: font(700, R.bark.text === 'ЕЩЁ РАЗОК!' ? 18 : 14, FF.body) });
   if (R.bro && R.bro.t > 0.45 && R.bro.t < R.bro.dur - 0.5) bubble(g, broX() + 34, 100, R.bro.t < 2.6 ? 'YEAH BUDDY!' : 'LIGHTWEIGHT, BABY!', { side: 'right', font: font(700, 17, FF.head), bg: P.yellow });
   for (const f of R.fx) { const k = f.t / f.life; g.save(); g.globalAlpha = 1 - Math.max(0, k - 0.6) / 0.4; textOl(g, f.text, f.x, f.y - k * 40, font(700, f.size, FF.head), f.col, 6, 'center'); g.restore(); }
   if (R.mode === 'ask') drawAsk();
@@ -1606,6 +1638,7 @@ window.ER = {
   tap(x = 560, y = 280) { onPress(x, y); },
   step(sec, fps = 60) { const dt = 1 / fps; for (let i = 0; i < Math.round(sec * fps); i++) update(dt); draw(); },
   more(v) { answerMore(v); },
+  forceCall(v) { FORCE_CALL = v; },
   bro() { callBro(); },
   loud() { if (!A) return null; const o = {}; for (const [k, b] of Object.entries(A.buf)) o[k] = +(20 * Math.log10(measureLoud(b) / SFX_TARGET)).toFixed(1); return o; },
   audioInfo() {

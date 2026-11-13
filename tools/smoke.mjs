@@ -103,10 +103,15 @@ log('  итоги обучения:', JSON.stringify(d1)); check(d1.tut && d1.ch
 await click(705, 352); check(await ev('ER.state') === 'plan', '«Ещё подход» → выбор плана');
 await shot('10-plan');
 const plans = await ev('ER.PLANS.map((p) => p.weight + "×" + p.reps + " " + p.fc.word)'); log('  планы:', plans.join(' | '));
+await ev('ER.forceCall(true)');   // в этом дожиме у соседа звонит телефон
 await click(700, 190); check(await ev('ER.state === "set" && ER.R.target') === 5, 'тап по третьей карточке → подход «на грани»');
 n = 0; do { r = await rep(); n++; } while (r.mode === 'lift' && n < 40);
 check(r.mode === 'push', 'дошли до дожима (' + r.reps + ' повторов)');
-await ev('ER.step(2.5)'); let m = await ev('ER.R.mode'); for (let i = 0; i < 120 && m === 'push'; i++) { await ev('ER.step(0.1)'); m = await ev('ER.R.mode'); }
+check(!!(await ev('ER.R.call')), 'в дожиме у соседа зазвонил телефон');
+await ev('ER.step(1.2)'); await click(44, 344);
+check(await ev('ER.R.mode') === 'push' && await ev('ER.R.spotLeft') === 1, 'сосед на телефоне — страховка не срабатывает');
+await shot('10b-call');
+await ev('ER.step(1.3)'); let m = await ev('ER.R.mode'); for (let i = 0; i < 120 && m === 'push'; i++) { await ev('ER.step(0.1)'); m = await ev('ER.R.mode'); }
 check(m === 'crash', 'без тапов штанга придавила → авария');
 check(await ev('ER.S.bans.podval') === 3, 'подвал закрыт на 3 тренировки');
 await ev('ER.step(0.5)'); await shot('11-crash-0.5s');
@@ -138,6 +143,7 @@ await click(252, 103); check(await ev('ER.S.voiceOff.op') === true, 'галоч�
 await click(252, 103); check(!(await ev('ER.S.voiceOff.op')), 'повторный тап включает обратно');
 
 // 5. Прокачанный герой и мотиватор: в дожиме выбегает качок, усталость в ноль, штанга уходит наверх
+await ev('ER.forceCall(false)');
 await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.S.cans = 200; ER.startSet(110, 6, false)');
 await ev(REP); await ev('ER.hold(true); ER.step(0.3)'); await shot('22-buff-set'); await ev('ER.hold(false); ER.step(0.6)');
 n = 0; do { r = await rep(); n++; } while (r.mode === 'lift' && n < 30);
