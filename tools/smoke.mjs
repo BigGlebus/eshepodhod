@@ -87,6 +87,7 @@ await ev('ER.hold(true); ER.step(0.3)'); await shot('05-press-yellow'); await ev
 do { r = await rep(); n++; } while (r.mode === 'lift' && n < 50);
 check(askSeen, 'после плана появился вопрос «Ещё разок?»');
 check(r.mode === 'push', 'усталость 100% → дожим (' + JSON.stringify(r) + ')');
+await ev('ER.R.pos = 0.4');   // штанга встала посередине — чтобы проверка не зависела от того, где именно кончились силы
 for (let i = 0; i < 5; i++) await ev('ER.tap(600 + Math.random() * 120, 240 + Math.random() * 60); ER.step(0.12)');
 await shot('07-push');
 const burl = await ev('ER.R.burl'); check(burl > 0.2 && burl < 1, 'тапы поднимают Бурлометр (' + burl.toFixed(2) + ')');
@@ -155,6 +156,16 @@ await ev('ER.step(1.4)'); r = await ev('({ mode: ER.R.mode, fat: ER.R.fat, legen
 check((r.mode === 'lift' || r.mode === 'ask') && r.fat > 0.9 && r.legend === 1 && r.bro, 'мотивация: дожим гарантирован, силы не восстановлены (' + JSON.stringify(r) + ')');
 await ev('ER.step(0.5)'); await shot('24-bro-after');
 await ev('ER.go("title"); ER.step(0.1)'); await shot('25-buff-title');
+
+// 5б. Задержка штанги: наверху почти бесплатно, на груди — дорого; передержал — придавило
+await ev('ER.forceCall(false); ER.S.gym = "school"; ER.startSet(60, 4, false)');
+await ev(REP);   // после первого жима задержки начинают стоить сил
+r = await ev('(() => { ER.hold(true); for (let i = 0; i < 300 && ER.R.pos < 1; i++) ER.step(1/60); const f0 = ER.R.fat; ER.step(3); const f1 = ER.R.fat; ER.hold(false); return [f0, f1]; })()');
+check(r[1] - r[0] < 0.05, 'держать наверху 3 с почти бесплатно (+' + (r[1] - r[0]).toFixed(3) + ')');
+r = await ev('(() => { for (let i = 0; i < 120 && ER.R.pos > 0; i++) ER.step(1/60); const f0 = ER.R.fat; ER.step(1); return [f0, ER.R.fat]; })()');
+check(r[1] - r[0] > 0.05, 'штанга на груди 1 с — силы заметно уходят (+' + (r[1] - r[0]).toFixed(3) + ')');
+await ev('ER.step(0.3)'); await shot('25b-chest');
+await ev('ER.step(8)'); check(await ev('ER.R.mode') === 'crash', 'передержал штангу на груди — придавило');
 
 // 6. Громкость и музыка (эхо зала и музыка считаются в фоне)
 await ev('ER.pause(false)'); await sleep(3500);

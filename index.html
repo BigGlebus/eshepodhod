@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v6';
+const APP_VERSION = 'v7';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -1066,7 +1066,7 @@ function startSet(weight, target, tut) {
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, lightCnt: 0, lightNext: 1, tapCnt: 0, tapNext: 2 };
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, lightCnt: 0, lightNext: 1, tapCnt: 0, tapNext: 2, started: false, bottomT: 0 };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle'), 200);
 }
@@ -1164,8 +1164,12 @@ function finishSet() {
     stageUp: stageOf(nb).i > stageOf(old).i, quote, tut };
   go('done');
 }
+// Задержка штанги: наверху почти бесплатно, на груди — дорого и всё дороже с каждой секундой.
+const TOP_DRAIN = 0.008, BOTTOM_DRAIN = 0.07;
+const onChest = () => R.mode === 'lift' && R.started && R.pos <= 0 && !holding();
 function setMood() {
   if (R.mode === 'crash') return 'fail';
+  if (onChest() && R.bottomT > 0.35) return R.fat >= 0.6 || R.bottomT > 1.2 ? 'max' : 'strain';   // давит на грудь
   if (R.mode === 'push') return 'max';
   if (R.mode === 'spot') return 'strain';
   if (R.mode === 'motiv') return R.bro.from === 'push' && R.pos < 0.98 ? 'strain' : 'focus';
@@ -1198,7 +1202,7 @@ function updateSet(dt) {
   if (R.mode === 'lift') {
     if (R.askPending && R.pos >= 1) { R.askPending = false; R.mode = 'ask'; R.askT = 0; R.pressing = false; bark('more'); return; }
     if (hold && R.pos < 1) {
-      R.idle = 0;
+      R.idle = 0; R.started = true; R.bottomT = 0;
       if (!R.pressing) {
         R.pressing = true; R.repK = 0.92 + Math.random() * 0.16;
         // пока легко — «Оооп» раз в 2–3 повтора; на средней усталости и выше — на каждом повторе (если прошлый голос доиграл)
@@ -1214,10 +1218,18 @@ function updateSet(dt) {
       // штанга встаёт, только оторвавшись от груди, — иначе дожим начинался бы сразу с аварии
       if (R.fat >= 1 && R.pos >= 0.22 && R.pos < 1) enterPush();
       else if (R.pos >= 1) { R.pos = 1; if (R.armed) completeRep('normal'); if (R.askPending) { R.askPending = false; R.mode = 'ask'; R.askT = 0; R.pressing = false; bark('more'); } }
-    } else if (hold) { R.fat = Math.max(0, R.fat - 0.01 * dt); R.idle += dt; }
-    else {
+    } else if (hold) {
+      // держит наверху на прямых руках: силы почти не тратятся
+      R.fat = Math.min(1, R.fat + TOP_DRAIN * R.load * dt); R.idle += dt; R.bottomT = 0;
+    } else {
       R.pressing = false;
-      if (R.pos > 0) R.pos = Math.max(0, R.pos - 1.5 * dt);
+      if (R.pos > 0) { R.pos = Math.max(0, R.pos - 1.5 * dt); R.bottomT = 0; }
+      else if (R.started) {
+        // штанга лежит на груди: силы уходят заметно, и чем дольше лежит — тем быстрее. Передержал — придавило.
+        R.bottomT += dt;
+        R.fat = Math.min(1, R.fat + BOTTOM_DRAIN * R.load * (R.tut ? 0.6 : 1) * (1 + 1.6 * R.bottomT) * dt / R.form);
+        if (R.fat >= 1) { crash(); return; }
+      }
       R.idle += dt;
     }
     if (R.pos < 0.85) R.atTop = false;
@@ -1258,7 +1270,12 @@ function drawSpotter() {
   layer('sp-' + id + pose + mood, 0, 60, 250, 330, (c) => person(c, SPX, 388, WS, Object.assign({}, NPC[id], { arms: pose, mood })));
   g.restore();
 }
-function barTrack(x, top, bot, t, stuck, armed) {
+function barTrack(x, top, bot, t, stuck, armed, danger) {
+  if (danger) {   // штанга залежалась на груди — точка мигает красным
+    const k = 0.5 + 0.5 * Math.sin(R.t * 14);
+    g.save(); g.strokeStyle = `rgba(255,90,70,${0.5 + 0.5 * k})`; g.lineWidth = 3; g.beginPath(); g.arc(x, bot, 12 + 5 * k, 0, TAU); g.stroke(); g.restore();
+    stuck = true;
+  }
   box(g, x - 4, top - 4, 8, bot - top + 8, 4, 'rgba(14,15,19,.75)');
   const zt = lerp(bot, top, 0.66), zb = lerp(bot, top, 0.38);
   g.save(); g.beginPath(); g.rect(x - 4, zt, 8, zb - zt); g.clip();
@@ -1317,7 +1334,7 @@ function drawSet() {
   if (z !== 1 || sh) { const cx = 300, cy = 300; g.translate(cx + (Math.random() - 0.5) * sh, cy + (Math.random() - 0.5) * sh); g.scale(z, z); g.translate(-cx, -cy); }
   layer('setbg-' + id, 0, 0, W, H, (c) => drawSetStage(c, id));
   drawSpotter();
-  const trem = (R.mode === 'push' || (R.fat > 0.85 && R.mode === 'lift' && holding() && R.pos < 1)) ? 1.8 : 0;
+  const trem = (R.mode === 'push' || (R.fat > 0.85 && R.mode === 'lift' && holding() && R.pos < 1)) ? 1.8 : (onChest() && R.bottomT > 0.6) ? Math.min(2.2, 0.8 + R.bottomT) : 0;
   const jx = trem ? (Math.random() - 0.5) * trem : 0, jy = trem ? (Math.random() - 0.5) * trem : 0;
   const Hn = handPos(R.pos, b);
   g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingBack(g, Hn, b); g.restore();
@@ -1336,7 +1353,7 @@ function drawSet() {
 function drawSetHud() {
   const pushing = R.mode === 'push', b = R.build;
   if (pushing) layer('redvig', 0, 0, W, H, (c) => { const gr = c.createRadialGradient(360, 210, 120, 360, 210, 520); gr.addColorStop(0, 'rgba(200,30,20,0)'); gr.addColorStop(1, 'rgba(200,30,20,.55)'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
-  barTrack(380, toScreen(handPos(1, b))[1], toScreen(handPos(0, b))[1], R.pos, pushing, R.armed);
+  barTrack(380, toScreen(handPos(1, b))[1], toScreen(handPos(0, b))[1], R.pos, pushing, R.armed, onChest() && R.bottomT > 0.3);
   // кнопка «поставить штангу»
   const done = R.reps >= R.target, canRack = R.mode === 'lift';
   const pulse = done ? 0.5 + 0.5 * Math.sin(R.t * 6) : 0;
@@ -1369,7 +1386,8 @@ function drawSetHud() {
       textOl(g, 'ДЕРЖИ ПАЛЕЦ', hx, hy + 84, font(700, 18, FF.head), '#FFFFFF', 5, 'center');
     }
     if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
-    if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    if (onChest() && R.bottomT > 0.5) textOl(g, 'Не держи штангу на груди — силы уходят!', 560, 372, font(600, 16, FF.body), P.bad, 5, 'center');
+    else if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
   if (R.call) {
     const sx = spotterX();
@@ -1539,7 +1557,7 @@ function drawBrief() {
   layer('valera', 0, 120, 260, 270, (c) => person(c, 130, 384, 1.12, Object.assign({}, NPC.valera, { arms: 'hips', mood: 'focus' })));
   iconBtn(12, 10, 'back', () => go('title'));
   text(g, 'ТРЕНЕР ВАЛЕРА ОБЪЯСНЯЕТ', 64, 36, font(700, 20, FF.head), P.text, 'left');
-  const tips = [['hold', 'Держи палец на экране — жмёшь штангу вверх.'], ['release', 'Дожал до верха — отпусти и опусти до груди. Это повтор.'],
+  const tips = [['hold', 'Держи палец на экране — жмёшь штангу вверх.'], ['release', 'Дожал — отпусти и сразу жми снова. На груди силы тают.'],
     ['zone', 'Жёлтая зона — рост ×1,5, красная — ×2. Но там шкала прячется.'], ['heart', 'Сколько сил осталось — смотри на лицо, дрожь и пульс.'],
     ['tap', 'Штанга встала — тапай часто, это дожим. Или зови страховку.'], ['poo', 'Живот не железный. Перегнёшь — авария и позор.']];
   tips.forEach(([k, s], i) => { const y = 78 + i * 43; box(g, 270, y - 18, 548, 36, 11, P.ui2); tipIcon(k, 296, y); text(g, s, 324, y + 5, font(500, 14.5, FF.body), P.text, 'left'); });
