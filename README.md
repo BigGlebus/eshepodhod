@@ -1,15 +1,50 @@
-# «Ещё разок!» (рабочее название)
+# «Ещё разок!»
 
-Личная мобильная игра про качалку — пока стадия макетов. Горизонтальный экран 844×390, PWA на canvas, как «Звукач» (`..\zvukach`).
+Личная мобильная игра про качалку. Горизонтальный экран 844×390, PWA на canvas, как «Звукач» (`..\zvukach`).
 
-- `mockups/index.html` — страница с макетами семи экранов, механиками с галочками и вопросами. Открывается двойным щелчком в браузере (нужен интернет для шрифтов).
-- `mockups/png/` — те же экраны картинками 1688×780.
-- `MECHANICS.md` — механики, качалки, план прототипа, вопросы.
+## Что лежит в папке
 
-Пересобрать картинки (Git Bash, из папки `mockups`):
+- `index.html` — сама игра (прототип v1): один файл, весь код внутри.
+- `sounds/obosralsya.wav` — звук-мем аварии (переведён из `obosralsya.ogg`, голосовухи Telegram: iPhone может не проиграть Ogg Opus).
+- `manifest.webmanifest`, `sw.js`, `icon-*.png`, `apple-touch-icon.png` — установка на экран «Домой» и офлайн-кэш (как у «Звукача»).
+- `mockups/` — страница с макетами семи экранов и выбором механик; `mockups/png/` — экраны картинками.
+- `MECHANICS.md` — механики, что сделано в прототипе, баланс, вопросы.
+- `tools/smoke.mjs` — автопроверка без звука; `tools/artifact.mjs` — сборка версии для страницы-артефакта Claude.
+
+## Как запустить
+
+Игру нужно открывать через сервер (с диска браузер не даёт загрузить звук и манифест):
 
 ```bash
-for s in hub plan set push fail done map; do "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu --hide-scrollbars --mute-audio --force-device-scale-factor=2 --window-size=844,390 --virtual-time-budget=6000 --screenshot="$(pwd -W)/png/$s.png" "file:///$(pwd -W)/index.html?shot=$s"; done
+python -m http.server 5610
 ```
 
-Ничего не опубликовано. Если выкладывать — на личный GitHub BigGlebus (как «Звукач»), отдельно настроив вход в этой папке.
+Потом открыть `http://localhost:5610/`. На компьютере: зажать пробел или мышь — жать, частые нажатия — дожим.
+
+## Автопроверка
+
+```bash
+node tools/smoke.mjs
+```
+
+Безголовый Chrome без звука проходит обучение, дожим, страховку, аварию, смену качалки и усы; снимки — в `tools/shots/` (в git не идут).
+
+## Версия для страницы-артефакта
+
+```bash
+node tools/artifact.mjs
+```
+
+Получится `dist/artifact.html` (в git не идёт). Публикуется вместе с `sounds/obosralsya.wav` рядом.
+
+## Обновление версии
+
+Меняй `APP_VERSION` в начале скрипта в `index.html` и `VERSION` в `sw.js`.
+
+Ничего не опубликовано на GitHub. Если выкладывать — на личный GitHub BigGlebus (как «Звукач»), отдельно настроив вход в этой папке.
+
+Иконки пересобираются так (Git Bash, из папки проекта):
+
+```bash
+for s in 512:icon-512 192:icon-192 180:apple-touch-icon; do n=${s%%:*}; f=${s##*:}; "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu --hide-scrollbars --mute-audio --force-device-scale-factor=1 --window-size=$n,$n --virtual-time-budget=4000 --screenshot="$(pwd -W)/$f.png" "file:///$(pwd -W | sed 's/ /%20/g')/index.html?icon=$n"; done
+```

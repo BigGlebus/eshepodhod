@@ -1,0 +1,17 @@
+{
+  "name": "Ещё разок!",
+  "short_name": "Ещё разок",
+  "description": "Юмористическая игра про качалку: жми штангу, дожимай на грани и не обосрись.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#16181C",
+  "theme_color": "#16181C",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
