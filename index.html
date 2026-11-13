@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v1';
+const APP_VERSION = 'v2';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -63,7 +63,7 @@ const FORCE_MUTE = QS.has('mute');
 
 /* ================= сохранение ================= */
 const SAVE_KEY = 'eshche-razok-save-v1';
-const DEF = { chest: 0, arms: 0, cans: 50, gym: 'podval', bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, muted: false };
+const DEF = { chest: 0, arms: 0, cans: 50, gym: 'podval', bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, muted: false, voiceOff: {} };
 const fresh = () => JSON.parse(JSON.stringify(DEF));
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') return Object.assign(fresh(), s); } catch (e) { /* нет хранилища */ } return fresh(); })();
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
@@ -153,7 +153,8 @@ function shapePath(c, p) {
   else { c.moveTo(p.p[0][0], p.p[0][1]); for (let i = 1; i < p.p.length; i++) c.lineTo(p.p[i][0], p.p[i][1]); if (p.k === 'poly') c.closePath(); }
 }
 // Мультяшная фигура: сначала общий контур всех частей, потом заливки — части сливаются в один силуэт.
-function blob(c, parts, ol = 3) {
+let OLD = 3; // толщина контура по умолчанию (на сцене подхода тоньше, потому что всё крупнее)
+function blob(c, parts, ol = OLD) {
   c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
   const stroked = (p) => p.k === 'line' || p.k === 'arc';
   if (ol > 0) for (const p of parts) {
@@ -249,7 +250,7 @@ function face(c, x, y, r, mood) {
   c.restore();
 }
 function head(c, x, y, r, o = {}) {
-  const mood = o.mood || 'calm', ol = o.ol ?? 3;
+  const mood = o.mood || 'calm', ol = o.ol ?? OLD;
   const tint = { strain: '#F3A486', max: '#E58591', fail: '#CBD39A' };
   const skin = o.sil || o.skin || tint[mood] || P.skin;
   if (o.hair === 'pony' && !o.sil) blob(c, [{ k: 'ell', x: x + r * 0.98, y: y - r * 0.28, rx: r * 0.3, ry: r * 0.62, rot: -0.45, c: o.hairC || P.hair }], ol);
@@ -297,7 +298,7 @@ function armPose(pose, sw) {
   }
 }
 function person(c, x, y, s, o = {}) {
-  const sil = o.sil, OLW = sil ? 0 : (o.ol ?? 3);
+  const sil = o.sil, OLW = sil ? 0 : (o.ol ?? OLD);
   const b = o.build ?? 1;
   const sw = 17 + b * 6.5, aw = 9.5 + b * 3.4, lw = 13 + b * 2.4, hip = 9 + b * 2.4;
   const SH = -136, HIP = -80;
@@ -461,50 +462,146 @@ function drawSetBg(c, id) {
 }
 
 /* ================= скамья, штанга, игрок лёжа ================= */
-const BX = 330, BY = 352, BS = 1.12;
-const V = [-18, -11], SH0 = [-72, -122];
-const ROT = Math.atan2(-V[1], -V[0]);
-const PLATE = { 25: [P.red, 58], 20: [P.blue, 55], 15: [P.yellow, 50], 10: [P.green, 44], 5: [P.white, 33], 2.5: ['#C9CED4', 27] };
+// Сцена подхода строго сбоку. Все люди в одном масштабе WS и с пропорциями person():
+// голова r 22, торс 56, бедро 40, голень 40, плечо 28, предплечье 27.
+const WS = 1.6, BX = 340, BY = 386, SET_OL = 2.2;
+const PLATE = { 25: [P.red, 29], 20: [P.blue, 27], 15: [P.yellow, 24.5], 10: [P.green, 22], 5: [P.white, 15], 2.5: ['#C9CED4', 11.5] };
 function platesFor(w) { let side = Math.max(0, (w - 20) / 2); const out = []; for (const p of [25, 20, 15, 10, 5, 2.5]) while (side >= p - 1e-6 && out.length < 3) { out.push(p); side -= p; } return out; }
-const handPos = (pos) => [-64, lerp(-142, -214, pos)];
-const at = (Hn, k) => [Hn[0] + V[0] * k, Hn[1] + V[1] * k];
-function plateEll(c, x, y, rx, ry, col, dim) {
-  const cc = dim ? shade(col, -0.3) : col, side = shade(col, dim ? -0.5 : -0.35);
-  const dx = Math.cos(ROT) * -5, dy = Math.sin(ROT) * -5;
-  blob(c, [{ k: 'ell', x: x + dx, y: y + dy, rx, ry, rot: ROT, c: side }, { k: 'ell', x, y, rx, ry, rot: ROT, c: cc }], 2.5);
-  c.save(); c.translate(x, y); c.rotate(ROT);
-  c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, 0, rx * 0.72, ry * 0.76, 0, 0, TAU); c.stroke();
-  c.fillStyle = '#2A2E35'; c.beginPath(); c.ellipse(0, 0, rx * 0.2, ry * 0.12, 0, 0, TAU); c.fill();
-  c.fillStyle = 'rgba(255,255,255,.22)'; c.beginPath(); c.ellipse(-rx * 0.35, -ry * 0.45, rx * 0.16, ry * 0.18, 0, 0, TAU); c.fill();
+const PAD = -40, HEADR = 22;
+const chestD = (b) => 22 + b * 6;      // толщина груди сбоку — растёт с прокачкой
+const armW = (b) => 9.5 + b * 3.4;     // как у person()
+const legW = (b) => 13 + b * 2.4;
+const shoulderOf = (b) => [-42, PAD - chestD(b) * 0.62];
+const HEAD_C = [-75.6, PAD - HEADR * 0.97];
+function handPos(pos, b) { const S0 = shoulderOf(b); return [lerp(-26, -40, pos), lerp(PAD - chestD(b) - 6, S0[1] - 51, pos)]; }
+const toScreen = (p) => [BX + p[0] * WS, BY + p[1] * WS];
+function drawUpright(c) {
+  c.save(); c.translate(BX, BY); c.scale(WS, WS);
+  blob(c, [{ k: 'rr', x: -74, y: -4, w: 44, h: 4, r: 1.5, c: P.ironD }, { k: 'rr', x: -56, y: -128, w: 7, h: 126, r: 2, c: P.iron },
+    { k: 'line', p: [[-50, -117], [-43, -117], [-43, -124]], w: 3.5, c: P.iron }], 1.8);
   c.restore();
 }
-function drawBenchBack(c, Hn, b, plates, who = true) {
-  blob(c, [{ k: 'rr', x: -50 + V[0], y: -246 + V[1], w: 10, h: 166, r: 2, c: P.iron },
-    { k: 'line', p: [[-45 + V[0], -228 + V[1]], [-34 + V[0], -228 + V[1]], [-34 + V[0], -238 + V[1]]], w: 4, c: P.iron }], 2.5);
-  const n = plates.length;
-  blob(c, [{ k: 'line', p: [at(Hn, 3.5 + Math.max(0, n - 1) * 0.42), at(Hn, 2.9)], w: 7, c: P.steelD }], 2.5);
-  for (let i = n - 1; i >= 0; i--) { const [col, ry] = PLATE[plates[i]]; const pp = at(Hn, 2.9 + i * 0.42); plateEll(c, pp[0], pp[1], ry * 0.84 * 0.52, ry * 0.84, col, true); }
-  if (who) { const farS = [SH0[0] + V[0], SH0[1] + V[1]], farH = at(Hn, 1); const fe = ik(farS, farH, 50, 50, 1); blob(c, [{ k: 'line', p: [farS, fe, farH], w: 14 + b * 2.4, c: P.skinD }, { k: 'ell', x: farH[0], y: farH[1], rx: 9, ry: 9, c: P.skinD }]); }
+function drawSetStage(c, id) { drawSetBg(c, id); drawUpright(c); }
+// Голова в профиле, лицом вверх: рисуем обычный профиль (лицом вправо) и поворачиваем на −90°.
+function headSide(c, x, y, r, o = {}) {
+  const mood = o.mood || 'calm', ol = o.ol ?? OLD;
+  const tint = { strain: '#F3A486', max: '#E58591', fail: '#CBD39A' };
+  const skin = o.skin || tint[mood] || P.skin;
+  c.save(); c.translate(x, y); c.rotate(-Math.PI / 2);
+  const path = () => {
+    c.beginPath();
+    c.moveTo(-0.92 * r, 0.38 * r);
+    c.quadraticCurveTo(-1.08 * r, -0.98 * r, 0.08 * r, -1.0 * r);
+    c.quadraticCurveTo(0.82 * r, -0.96 * r, 0.9 * r, -0.36 * r);
+    c.lineTo(0.93 * r, -0.12 * r);
+    c.quadraticCurveTo(1.26 * r, 0.14 * r, 1.0 * r, 0.24 * r);
+    c.lineTo(0.97 * r, 0.31 * r);
+    c.quadraticCurveTo(1.02 * r, 0.42 * r, 0.95 * r, 0.5 * r);
+    c.quadraticCurveTo(0.99 * r, 0.62 * r, 0.88 * r, 0.74 * r);
+    c.quadraticCurveTo(0.7 * r, 0.96 * r, 0.32 * r, 0.93 * r);
+    c.quadraticCurveTo(0.02 * r, 0.9 * r, -0.2 * r, 0.78 * r);
+    c.quadraticCurveTo(-0.62 * r, 0.76 * r, -0.92 * r, 0.38 * r);
+    c.closePath();
+  };
+  c.lineJoin = 'round'; path(); c.lineWidth = ol * 2; c.strokeStyle = INK; c.stroke(); c.fillStyle = skin; c.fill();
+  c.save(); path(); c.clip();
+  c.fillStyle = P.hair; c.beginPath(); c.ellipse(-0.38 * r, -0.52 * r, 0.92 * r, 0.72 * r, -0.2, 0, TAU); c.fill();
+  if (o.band) {
+    c.fillStyle = P.band; c.beginPath(); c.moveTo(1.1 * r, -0.66 * r); c.lineTo(1.1 * r, -0.4 * r); c.lineTo(-1.1 * r, -0.12 * r); c.lineTo(-1.1 * r, -0.38 * r); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.25)'; c.beginPath(); c.moveTo(1.1 * r, -0.63 * r); c.lineTo(1.1 * r, -0.59 * r); c.lineTo(-1.1 * r, -0.31 * r); c.lineTo(-1.1 * r, -0.35 * r); c.closePath(); c.fill();
+  }
+  c.restore();
+  blob(c, [{ k: 'ell', x: -0.12 * r, y: 0.06 * r, rx: 0.17 * r, ry: 0.25 * r, c: skin }], Math.min(ol, 2));
+  c.strokeStyle = 'rgba(27,28,34,.45)'; c.lineWidth = Math.max(1, r * 0.05); c.lineCap = 'round'; c.beginPath(); c.arc(-0.1 * r, 0.06 * r, 0.09 * r, -1.2, 1.4); c.stroke();
+  if (o.band) blob(c, [{ k: 'ell', x: -0.95 * r, y: -0.25 * r, rx: 0.1 * r, ry: 0.13 * r, c: P.band }], Math.min(ol, 1.6));
+  sideFace(c, r, mood, o);
+  c.restore();
 }
-function drawBenchBody(c, b, who = true) {
-  blob(c, [{ k: 'rr', x: -132, y: -84, w: 10, h: 82, r: 2, c: P.iron }, { k: 'rr', x: 82, y: -84, w: 10, h: 82, r: 2, c: P.iron },
-    { k: 'rr', x: -162, y: -8, w: 68, h: 8, r: 3, c: P.ironD }, { k: 'rr', x: 54, y: -8, w: 68, h: 8, r: 3, c: P.ironD },
-    { k: 'rr', x: -154, y: -97, w: 270, h: 15, r: 6, c: P.pad }], 2.5);
-  c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-146, -94, 256, 3);
-  if (!who) return;
-  blob(c, [{ k: 'ell', x: 4, y: -108, rx: 18, ry: 14, c: P.pants }, { k: 'line', p: [[4, -110], [76, -124], [90, -18]], w: 24, c: P.pants }, { k: 'ell', x: 101, y: -9, rx: 19, ry: 8, c: P.white }]);
-  c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); c.moveTo(14, -121); c.lineTo(80, -135); c.lineTo(100, -26); c.stroke(); c.restore();
-  const up = b * 4;
-  blob(c, [{ k: 'poly', p: [[-100, -97], [-98, -126 - up * 0.6], [-74, -138 - up], [-34, -137 - up], [6, -127], [14, -99]], c: P.tank }, { k: 'line', p: [[-100, -116], [-112, -120]], w: 16, c: P.skin }, { k: 'ell', x: SH0[0], y: SH0[1] + 1, rx: 15 + b * 2.5, ry: 13 + b * 2, c: P.skin }]);
-  c.save(); c.strokeStyle = 'rgba(27,28,34,.3)'; c.lineWidth = 2; c.beginPath(); c.arc(-52, -128 - up, 16 + b * 2, 0.1 * Math.PI, 0.9 * Math.PI); c.stroke(); c.restore();
+function sideFace(c, r, mood, o) {
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = INK; c.fillStyle = INK;
+  const lw = Math.max(1.3, r * 0.08); c.lineWidth = lw;
+  const ln = (...a) => { c.beginPath(); c.moveTo(a[0], a[1]); for (let i = 2; i < a.length; i += 2) c.lineTo(a[i], a[i + 1]); c.stroke(); };
+  const ex = 0.6 * r, ey = -0.12 * r;
+  const sweat = (sx, sy, s) => {
+    c.beginPath(); c.moveTo(sx, sy - s); c.quadraticCurveTo(sx + s * 0.8, sy + s * 0.25, sx, sy + s * 0.65); c.quadraticCurveTo(sx - s * 0.8, sy + s * 0.25, sx, sy - s);
+    c.fillStyle = '#8FD3FF'; c.fill(); c.lineWidth = lw * 0.6; c.stroke(); c.lineWidth = lw; c.fillStyle = INK;
+  };
+  const vein = (vx, vy, s) => { c.save(); c.strokeStyle = '#7A5BD0'; c.lineWidth = lw * 0.85; ln(vx, vy, vx + s * 0.3, vy + s * 0.35, vx - s * 0.1, vy + s * 0.62, vx + s * 0.25, vy + s); c.restore(); };
+  switch (mood) {
+    case 'strain': case 'max': {
+      const big = mood === 'max';
+      ln(ex - 0.13 * r, ey - 0.02 * r, ex + 0.12 * r, ey + 0.03 * r);
+      c.lineWidth = lw * 0.7; ln(ex - 0.16 * r, ey - 0.08 * r, ex - 0.27 * r, ey - 0.15 * r); ln(ex - 0.16 * r, ey + 0.05 * r, ex - 0.27 * r, ey + 0.11 * r); c.lineWidth = lw;
+      ln(0.4 * r, -0.37 * r, 0.84 * r, -0.2 * r);
+      const tx = big ? 0.6 * r : 0.7 * r, tw = 0.98 * r - tx, th = big ? 0.24 * r : 0.18 * r;
+      rrPath(c, tx, 0.37 * r, tw, th, th * 0.3); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke(); c.fillStyle = INK;
+      c.lineWidth = lw * 0.5; ln(tx + tw * 0.35, 0.37 * r, tx + tw * 0.35, 0.37 * r + th); ln(tx + tw * 0.7, 0.37 * r, tx + tw * 0.7, 0.37 * r + th); ln(tx, 0.37 * r + th / 2, tx + tw, 0.37 * r + th / 2); c.lineWidth = lw;
+      vein(0.22 * r, -0.66 * r, 0.3 * r); if (big) vein(0.02 * r, -0.74 * r, 0.26 * r);
+      sweat(1.06 * r, -0.78 * r, 0.16 * r); sweat(0.6 * r, -1.2 * r, 0.13 * r);
+      if (big) { c.lineWidth = lw * 0.9; ln(1.36 * r, -0.62 * r, 1.6 * r, -0.78 * r); ln(1.44 * r, 0.04 * r, 1.72 * r, 0.04 * r); ln(0.3 * r, -1.3 * r, 0.36 * r, -1.58 * r); }
+      break; }
+    case 'fail': case 'panic': case 'shock': {
+      c.beginPath(); c.arc(ex, ey, 0.17 * r, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke(); c.fillStyle = INK;
+      c.beginPath(); c.arc(ex + 0.08 * r, ey, 0.05 * r, 0, TAU); c.fill();
+      c.beginPath(); c.moveTo(0.4 * r, -0.4 * r); c.quadraticCurveTo(0.6 * r, -0.56 * r, 0.84 * r, -0.44 * r); c.stroke();
+      if (mood === 'fail') ln(0.72 * r, 0.48 * r, 0.78 * r, 0.42 * r, 0.84 * r, 0.5 * r, 0.9 * r, 0.43 * r, 0.97 * r, 0.49 * r);
+      else { c.beginPath(); c.ellipse(0.9 * r, 0.47 * r, 0.08 * r, 0.12 * r, 0, 0, TAU); c.fillStyle = '#5A2320'; c.fill(); c.stroke(); }
+      sweat(1.05 * r, -0.7 * r, 0.16 * r); sweat(0.45 * r, -1.2 * r, 0.13 * r);
+      break; }
+    case 'focus':
+      c.beginPath(); c.arc(ex, ey, 0.08 * r, 0, TAU); c.fill();
+      ln(0.42 * r, -0.38 * r, 0.82 * r, -0.25 * r); ln(0.8 * r, 0.48 * r, 0.95 * r, 0.48 * r);
+      break;
+    default:
+      c.beginPath(); c.arc(ex, ey, 0.08 * r, 0, TAU); c.fill();
+      ln(0.44 * r, -0.33 * r, 0.78 * r, -0.31 * r); ln(0.78 * r, 0.44 * r, 0.83 * r, 0.48 * r, 0.95 * r, 0.47 * r);
+  }
+  if (o.shades) { rrPath(c, ex - 0.2 * r, ey - 0.14 * r, 0.4 * r, 0.26 * r, 0.08 * r); c.fillStyle = '#15161A'; c.fill(); c.stroke(); ln(ex - 0.2 * r, ey - 0.03 * r, -0.04 * r, 0); }
+  if (o.mustache) blob(c, [{ k: 'ell', x: 0.94 * r, y: 0.34 * r, rx: 0.2 * r, ry: 0.085 * r, rot: 0.35, c: '#3A2A22' }], 1.2);
+  c.restore();
 }
-function drawBenchFront(c, Hn, b, plates, who = true) {
-  const n = plates.length;
-  blob(c, [{ k: 'line', p: [at(Hn, 2.9), at(Hn, -2.7)], w: 7, c: P.steel }], 2.5);
-  if (who) { const ne = ik(SH0, Hn, 50, 50, 1); blob(c, [{ k: 'line', p: [SH0, ne, Hn], w: 15 + b * 2.6, c: P.skin }, { k: 'ell', x: Hn[0], y: Hn[1], rx: 10 + b * 0.8, ry: 10 + b * 0.8, c: P.skin }]); }
-  for (let i = 0; i < n; i++) { const [col, ry] = PLATE[plates[i]]; const pp = at(Hn, -2.7 - i * 0.42); plateEll(c, pp[0], pp[1], ry * 0.53, ry, col); }
-  const end = at(Hn, -3.3 - Math.max(0, n - 1) * 0.42);
-  blob(c, [{ k: 'line', p: [at(Hn, -2.7 - Math.max(0, n - 1) * 0.42), end], w: 8, c: P.steel }, { k: 'rr', x: end[0] - 5, y: end[1] - 6, w: 10, h: 12, r: 3, c: P.steelD }], 2.5);
+// Дальняя рука (за телом и блином).
+function drawLyingBack(c, Hn, b) {
+  const S0 = shoulderOf(b), fs = [S0[0] - 4, S0[1] - 3], fh = [Hn[0] - 4, Hn[1] - 3];
+  const fe = ik(fs, fh, 28, 27, 1), aw = armW(b);
+  blob(c, [{ k: 'line', p: [fs, fe, fh], w: aw, c: P.skinD }, { k: 'ell', x: fh[0], y: fh[1], rx: aw * 0.62, ry: aw * 0.62, c: P.skinD }]);
+}
+// Скамья и неподвижное тело — рисуются один раз в картинку.
+function drawLyingBody(c, b) {
+  const d = chestD(b), lw = legW(b);
+  const hipP = [12, PAD - lw * 0.55], knee = [52, PAD - lw * 0.45], ankle = [56, -9];
+  blob(c, [{ k: 'line', p: [[hipP[0] - 6, hipP[1]], [knee[0] - 7, knee[1]], [ankle[0] - 8, ankle[1]]], w: lw * 0.95, c: shade(P.pants, -0.3) }, { k: 'ell', x: ankle[0] - 1, y: -5, rx: 11 + b, ry: 6, c: '#BFC3C9' }]);
+  blob(c, [{ k: 'rr', x: -86, y: -31, w: 7, h: 30, r: 2, c: P.iron }, { k: 'rr', x: 30, y: -31, w: 7, h: 30, r: 2, c: P.iron },
+    { k: 'rr', x: -100, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD }, { k: 'rr', x: 16, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD },
+    { k: 'rr', x: -92, y: -32, w: 134, h: 5, r: 2, c: P.iron }, { k: 'rr', x: -100, y: PAD, w: 150, h: 9, r: 4, c: P.pad }], 1.8);
+  c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-96, PAD + 1.5, 142, 2);
+  blob(c, [{ k: 'poly', p: [[2, PAD], [22, PAD], [22, PAD - d * 0.6], [2, PAD - d * 0.66]], c: P.pants }, { k: 'line', p: [hipP, knee, ankle], w: lw, c: P.pants }, { k: 'ell', x: ankle[0] + 7, y: -5, rx: 11 + b, ry: 6, c: P.white }]);
+  c.save(); c.strokeStyle = P.stripe; c.lineWidth = 1.6; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(hipP[0] + 2, hipP[1] - lw * 0.4); c.lineTo(knee[0], knee[1] - lw * 0.4); c.lineTo(ankle[0] + lw * 0.4, ankle[1] - 3); c.stroke(); c.restore();
+  const neckA = [HEAD_C[0] + HEADR * 0.6, HEAD_C[1] - 1], neckB = [-46, PAD - d * 0.55];
+  blob(c, [{ k: 'line', p: [neckA, neckB], w: 12 + b * 2.5, c: P.skin },
+    { k: 'poly', p: [[-50, PAD], [-53, PAD - d * 0.55], [-44, PAD - d * 0.9], [-26, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: P.skin }]);
+  blob(c, [{ k: 'poly', p: [[-36, PAD], [-38, PAD - d * 0.62], [-31, PAD - d * 0.97], [-26, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: P.tank }], 1.5);
+  if (b >= 1.2) { c.save(); c.strokeStyle = 'rgba(27,28,34,.3)'; c.lineWidth = 1.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(-30, PAD - d * 0.95); c.quadraticCurveTo(-18, PAD - d * 0.6, -6, PAD - d * 0.88); c.stroke(); c.restore(); }
+}
+// Ближняя рука и блины (штанга смотрит на нас торцом — блин виден кругом).
+function drawLyingFront(c, Hn, b, plates) {
+  const S0 = shoulderOf(b), aw = armW(b), E = ik(S0, Hn, 28, 27, 1);
+  const parts = [{ k: 'ell', x: S0[0], y: S0[1], rx: aw * 0.8, ry: aw * 0.72, c: P.skin }, { k: 'line', p: [S0, E, Hn], w: aw, c: P.skin }, { k: 'ell', x: Hn[0], y: Hn[1], rx: aw * 0.62, ry: aw * 0.62, c: P.skin }];
+  if (b >= 1.3) { const m = lp(S0, E, 0.5), dx = E[0] - S0[0], dy = E[1] - S0[1], L = Math.hypot(dx, dy) || 1; parts.push({ k: 'ell', x: m[0] + dy / L * aw * 0.32, y: m[1] - dx / L * aw * 0.32, rx: aw * 0.72, ry: aw * 0.56, rot: Math.atan2(dy, dx), c: P.skin }); }
+  blob(c, parts);
+  plateSide(c, Hn[0], Hn[1], plates);
+}
+function plateSide(c, x, y, plates) {
+  const list = plates.slice().sort((a, b2) => PLATE[b2][1] - PLATE[a][1]);
+  for (const p of list) {
+    const [col, r] = PLATE[p];
+    blob(c, [{ k: 'ell', x: x + 1.5, y: y + 1.5, rx: r, ry: r, c: shade(col, -0.35) }, { k: 'ell', x, y, rx: r, ry: r, c: col }], 1.8);
+    c.save(); c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 1.4; c.beginPath(); c.arc(x, y, r * 0.74, 0, TAU); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.arc(x, y, r * 0.86, Math.PI * 1.1, Math.PI * 1.45); c.stroke(); c.restore();
+  }
+  blob(c, [{ k: 'ell', x, y, rx: 6, ry: 6, c: P.steel }], 1.6);
+  c.fillStyle = P.steelD; c.beginPath(); c.arc(x, y, 2.4, 0, TAU); c.fill();
 }
 
 /* ================= интерфейс ================= */
@@ -550,16 +647,26 @@ function fatigueMeter(x, y, w, h, lvl, o) {
   if (o.glow) { const gr = g.createRadialGradient(x + w / 2, y + 30, 4, x + w / 2, y + 30, 70); gr.addColorStop(0, 'rgba(255,70,50,.55)'); gr.addColorStop(1, 'rgba(255,70,50,0)'); g.fillStyle = gr; g.fillRect(x - 70, y - 50, w + 140, 160); }
   box(g, x - 5, y - 5, w + 10, h + 10, (w + 10) / 2, 'rgba(14,15,19,.85)');
   g.save(); rrPath(g, x, y, w, h, w / 2); g.clip();
-  for (const [a, b, col] of [[0, 0.6, P.green], [0.6, 0.85, P.yellow], [0.85, 1, P.red]]) {
-    g.globalAlpha = 0.22; g.fillStyle = col; g.fillRect(x, y + h * (1 - b), w, h * (b - a)); g.globalAlpha = 1;
-    const tp = Math.min(b, lvl); if (tp > a) { g.fillStyle = col; g.fillRect(x, y + h * (1 - tp), w, h * (tp - a)); }
+  for (const [a, b, col] of [[0, 0.6, P.green], [0.6, 0.85, P.yellow], [0.85, 1, P.red]]) { g.globalAlpha = 0.22; g.fillStyle = col; g.fillRect(x, y + h * (1 - b), w, h * (b - a)); g.globalAlpha = 1; }
+  const gl = Math.min(lvl, 0.6); g.fillStyle = P.green; g.fillRect(x, y + h * (1 - gl), w, h * gl);
+  const hidden = lvl >= 0.6;
+  if (hidden) {
+    // выше зелёной зоны — туман: сколько сил осталось, не видно, только пульс
+    g.fillStyle = o.glow ? 'rgba(130,24,18,.95)' : 'rgba(36,39,46,.97)'; g.fillRect(x, y, w, h * 0.4);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 3; const off = ((o.t || 0) * 18) % 12;
+    for (let k = -12; k < h * 0.4 + w + 12; k += 12) { g.beginPath(); g.moveTo(x - 2, y + k + off); g.lineTo(x + w + 2, y + k + off - w - 4); g.stroke(); }
   }
   g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(x + 4, y, 4, h);
   g.restore();
   g.strokeStyle = 'rgba(14,15,19,.95)'; g.lineWidth = 2; for (const z of [0.6, 0.85]) { g.beginPath(); g.moveTo(x, y + h * (1 - z)); g.lineTo(x + w, y + h * (1 - z)); g.stroke(); }
-  const my = y + h * (1 - Math.min(lvl, 1));
-  g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(x - 7, my); g.lineTo(x - 18, my - 8); g.lineTo(x - 18, my + 8); g.closePath(); g.fill(); g.strokeStyle = INK; g.lineWidth = 2; g.stroke();
-  if (lvl >= 0.6) { const col = lvl >= 0.85 ? P.red : P.yellow; const m = lvl >= 0.85 ? '×2' : '×1.5'; box(g, x - 70, my - 13, 48, 26, 13, col, INK, 2); text(g, m, x - 46, my + 1, font(700, 16, FF.head), lvl >= 0.85 ? '#FFFFFF' : INK, 'center', 'middle'); }
+  if (!hidden) {
+    const my = y + h * (1 - lvl);
+    g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(x - 7, my); g.lineTo(x - 18, my - 8); g.lineTo(x - 18, my + 8); g.closePath(); g.fill(); g.strokeStyle = INK; g.lineWidth = 2; g.stroke();
+  } else {
+    const p = Math.exp(-((o.beat || 0) % 1) * 7);
+    heart(x + w / 2, y + h * 0.17, 9 * (1 + 0.35 * p));
+    text(g, '?', x + w / 2, y + h * 0.32, font(700, 20, FF.head), 'rgba(244,242,236,.75)', 'center', 'middle');
+  }
   pooIcon(g, x + w / 2, y - 26, 0.95, o.shake);
 }
 function bubble(c, tipX, tipY, lines, o = {}) {
@@ -615,7 +722,7 @@ function ensureAudio() {
   try { const un = ctx.createBufferSource(); un.buffer = ctx.createBuffer(1, 1, 22050); un.connect(ctx.destination); un.start(0); } catch (e) { /* нет */ }
   ctx.resume().catch(() => {});
   A = { ctx, master, buf: {} };
-  try { makeSounds(); } catch (e) { /* без синтеза */ }
+  try { makeSounds(); } catch (e) { console.error(e); }
   loadMeme();
 }
 function setMuted(m) { S.muted = m; save(); if (A) A.master.gain.value = (m || FORCE_MUTE) ? 0 : 0.9; }
@@ -623,24 +730,80 @@ function synth(len, fn) {
   const sr = A.ctx.sampleRate, n = Math.max(1, Math.floor(sr * len)), b = A.ctx.createBuffer(1, n, sr), d = b.getChannelData(0);
   fn(d, n, sr); return b;
 }
-function makeSounds() {
-  const grunt = (len, f0, trem) => synth(len, (d, n, sr) => {
-    let ph = 0, lp1 = 0, lp2 = 0;
+// Голос напряжения: импульсы голосовых связок → четыре резонатора гласной (форманты), плюс дыхание, хрип и дрожь.
+const VOW = { ы: [300, 1480, 2350, 3300], э: [520, 1750, 2500, 3400], а: [720, 1250, 2500, 3400], у: [330, 780, 2300, 3300], м: [260, 1050, 2200, 3300], н: [260, 1450, 2300, 3300], х: [500, 1400, 2500, 3500] };
+const VOICES = [
+  { id: 'mmf', name: '«Ммм-ф»', use: 'лёгкий повтор', tier: 'light', sp: { len: 0.42, f0: [108, 126], press: 0.35, keys: [
+    { t: 0, v: 'м', voice: 1, nasal: 1, amp: 0 }, { t: 0.1, v: 'м', voice: 1, nasal: 1, amp: 0.9 }, { t: 0.72, v: 'м', voice: 1, nasal: 1, amp: 1 },
+    { t: 0.8, v: 'м', voice: 0, hiss: 1, amp: 0.7 }, { t: 1, v: 'м', voice: 0, hiss: 0.6, amp: 0 }] } },
+  { id: 'ngh', name: '«Нгх»', use: 'лёгкий повтор', tier: 'light', sp: { len: 0.3, f0: [118, 124], press: 0.6, fry: 0.035, keys: [
+    { t: 0, v: 'н', voice: 1, nasal: 1, amp: 0.6 }, { t: 0.5, v: 'н', voice: 1, nasal: 1, amp: 1 }, { t: 0.58, v: 'х', voice: 0.2, noise: 0.9, amp: 0.8 }, { t: 1, v: 'х', voice: 0, noise: 0.8, amp: 0 }] } },
+  { id: 'hyy', name: '«Хыыы»', use: 'средний повтор', tier: 'mid', sp: { len: 0.55, f0: [112, 150], press: 0.6, trem: [5.5, 0.015], keys: [
+    { t: 0, v: 'х', voice: 0, noise: 0.8, amp: 0.5 }, { t: 0.12, v: 'ы', voice: 1, noise: 0.15, amp: 0.95 }, { t: 0.85, v: 'ы', voice: 1, noise: 0.15, amp: 1 }, { t: 1, v: 'х', voice: 0, noise: 0.6, amp: 0 }] } },
+  { id: 'eeh', name: '«Ээээх»', use: 'средний повтор', tier: 'mid', sp: { len: 0.6, f0: [118, 146], press: 0.5, trem: [6, 0.02], keys: [
+    { t: 0, v: 'э', voice: 1, noise: 0.1, amp: 0 }, { t: 0.06, v: 'э', voice: 1, noise: 0.1, amp: 1 }, { t: 0.78, v: 'э', voice: 1, noise: 0.15, amp: 0.95 }, { t: 0.86, v: 'х', voice: 0.1, noise: 0.9, amp: 0.7 }, { t: 1, v: 'х', voice: 0, noise: 0.7, amp: 0 }] } },
+  { id: 'yygh', name: '«Ыыыгх»', use: 'тяжёлый повтор', tier: 'heavy', sp: { len: 0.75, f0: [104, 165], f0c: 0.7, press: 0.9, fry: 0.08, trem: [7, 0.035], growl: 0.35, keys: [
+    { t: 0, v: 'ы', voice: 1, noise: 0.1, amp: 0.5 }, { t: 0.1, v: 'ы', voice: 1, noise: 0.12, amp: 1 }, { t: 0.82, v: 'ы', voice: 1, noise: 0.2, amp: 1 }, { t: 0.88, v: 'х', voice: 0.3, noise: 0.9, amp: 0.8 }, { t: 1, v: 'х', voice: 0, noise: 0.7, amp: 0 }] } },
+  { id: 'aargh', name: '«Аааргх»', use: 'тяжёлый повтор', tier: 'heavy', sp: { len: 0.85, f0: [110, 178], f0c: 0.8, press: 0.85, fry: 0.06, trem: [8, 0.045], growl: 0.6, keys: [
+    { t: 0, v: 'а', voice: 1, noise: 0.15, amp: 0.4 }, { t: 0.12, v: 'а', voice: 1, noise: 0.2, amp: 1 }, { t: 0.8, v: 'а', voice: 1, noise: 0.25, amp: 1 }, { t: 0.9, v: 'х', voice: 0.3, noise: 0.9, amp: 0.7 }, { t: 1, v: 'х', voice: 0, noise: 0.6, amp: 0 }] } },
+  { id: 'kh', name: '«Кх!»', use: 'тап в дожиме', tier: 'tap', sp: { len: 0.14, f0: [60, 60], fry: 0.14, press: 1, keys: [
+    { t: 0, v: 'х', voice: 0.8, noise: 0.8, amp: 1 }, { t: 0.4, v: 'х', voice: 0.4, noise: 0.9, amp: 0.8 }, { t: 1, v: 'х', voice: 0, noise: 0.6, amp: 0 }] } },
+  { id: 'hy', name: '«Хы!»', use: 'тап в дожиме', tier: 'tap', sp: { len: 0.17, f0: [138, 150], press: 0.7, keys: [
+    { t: 0, v: 'х', voice: 0, noise: 0.9, amp: 0.7 }, { t: 0.3, v: 'ы', voice: 1, noise: 0.15, amp: 1 }, { t: 0.75, v: 'ы', voice: 1, noise: 0.2, amp: 0.8 }, { t: 1, v: 'ы', voice: 0, noise: 0.3, amp: 0 }] } },
+  { id: 'uff', name: '«Уфф»', use: 'после тяжёлого повтора', tier: 'relief', sp: { len: 0.42, f0: [125, 92], press: 0, keys: [
+    { t: 0, v: 'у', voice: 0.6, noise: 0.5, amp: 0 }, { t: 0.08, v: 'у', voice: 0.7, noise: 0.5, amp: 0.9 }, { t: 0.5, v: 'у', voice: 0.3, noise: 0.5, amp: 0.7 }, { t: 0.62, v: 'у', voice: 0, hiss: 1, amp: 0.6 }, { t: 1, v: 'у', voice: 0, hiss: 0.5, amp: 0 }] } },
+];
+function voiceBuf(sp) {
+  return synth(sp.len, (d, n, sr) => {
+    const res = [0, 1, 2, 3].map(() => ({ a: 0, b: 0, c: 0, y1: 0, y2: 0 }));
+    const setRes = (r, F, BW) => { const T = 1 / sr; r.c = -Math.exp(-2 * Math.PI * BW * T); r.b = 2 * Math.exp(-Math.PI * BW * T) * Math.cos(2 * Math.PI * F * T); r.a = 1 - r.b - r.c; };
+    const K = sp.keys, tmp = new Float32Array(n);
+    let k = 0, ph = 0, prev = 0, per = 0, pa = 1, sub = 1, jit = 0, nl = 0, hp = 0, hpx = 0;
     for (let i = 0; i < n; i++) {
-      const t = i / sr, k = t / len, f = f0 * (1 - 0.18 * k) * (1 + (trem ? 0.04 * Math.sin(t * 60) : 0));
-      ph += f / sr; const saw = 2 * (ph % 1) - 1, nz = Math.random() * 2 - 1;
-      const env = Math.min(1, t / 0.03) * Math.pow(1 - k, 1.4) * (trem ? 0.75 + 0.25 * Math.sin(t * 52) : 1);
-      lp1 += (saw * 0.7 + nz * 0.3 - lp1) * 0.1; lp2 += (lp1 - lp2) * 0.25; d[i] = lp2 * env * 1.4;
+      const t = i / n, ts = i / sr;
+      while (k < K.length - 2 && t > K[k + 1].t) k++;
+      const k0 = K[k], k1 = K[k + 1], u = clamp((t - k0.t) / Math.max(1e-6, k1.t - k0.t), 0, 1);
+      const mx = (key) => lerp(k0[key] || 0, k1[key] || 0, u);
+      const nas = mx('nasal');
+      if (i % 24 === 0) { const F0 = VOW[k0.v], F1 = VOW[k1.v]; for (let j = 0; j < 4; j++) setRes(res[j], lerp(F0[j], F1[j], u), [80, 100, 150, 220][j] * (1 + nas * [0.3, 2.2, 1.8, 1.4][j])); }
+      let f0 = lerp(sp.f0[0], sp.f0[1], Math.pow(t, sp.f0c || 1));
+      jit = jit * 0.996 + (Math.random() - 0.5) * 0.004;
+      f0 *= 1 + jit + (sp.trem ? sp.trem[1] * Math.sin(2 * Math.PI * sp.trem[0] * ts) : 0);
+      const fry = sp.fry && ts < sp.fry;
+      if (fry) f0 = 50 + 25 * Math.random();
+      ph += f0 / sr;
+      if (ph >= 1) { ph -= 1; per++; pa = 1 + (Math.random() - 0.5) * (fry ? 0.7 : 0.14); sub = sp.growl && per % 2 ? 1 - sp.growl * Math.min(1, t * 1.6) : 1; }
+      const oq = fry ? 0.28 : 0.6 - 0.22 * (sp.press || 0);
+      let gl = 0;
+      if (ph < oq * 0.66) gl = 0.5 * (1 - Math.cos(Math.PI * ph / (oq * 0.66)));
+      else if (ph < oq) gl = Math.cos(Math.PI * (ph - oq * 0.66) / (2 * oq * 0.34));
+      gl *= pa * sub;
+      const dg = (gl - prev) * sr / 1000; prev = gl;
+      const nz = Math.random() * 2 - 1, voice = mx('voice');
+      let x = dg * 0.5 * voice + nz * mx('noise') * (voice > 0.2 ? 0.25 + 0.75 * gl : 1) * 0.35;
+      for (let j = 0; j < 4; j++) { const r = res[j]; const y = r.a * x + r.b * r.y1 + r.c * r.y2; r.y2 = r.y1; r.y1 = y; x = y; }
+      nl += (x - nl) * 0.2; x = lerp(x, nl, nas * 0.7);
+      hp = 0.85 * (hp + nz - hpx); hpx = nz; x += hp * mx('hiss') * 0.12;
+      tmp[i] = x * mx('amp');
+    }
+    let pk = 1e-9; for (let i = 0; i < n; i++) pk = Math.max(pk, Math.abs(tmp[i]));
+    const drive = 1 + (sp.growl || 0) * 2.5, norm = Math.tanh(drive), fade = Math.floor(sr * 0.006);
+    for (let i = 0; i < n; i++) {
+      let v = Math.tanh(tmp[i] / pk * drive) / norm;
+      if (i < fade) v *= i / fade; if (i > n - fade) v *= (n - i) / fade;
+      d[i] = v * 0.85;
     }
   });
-  A.buf.grunt1 = grunt(0.2, 150, false); A.buf.grunt2 = grunt(0.32, 125, false); A.buf.grunt3 = grunt(0.5, 104, true);
+}
+function makeSounds() {
+  for (const v of VOICES) A.buf['v_' + v.id] = voiceBuf(v.sp);
   A.buf.clank = synth(0.5, (d, n, sr) => {
     const parts = [[523, 1, 7], [1311, 0.55, 10], [2207, 0.35, 14], [3119, 0.25, 18], [187, 0.4, 9]];
     for (let i = 0; i < n; i++) { const t = i / sr; let v = 0; for (const [f, a, dk] of parts) v += a * Math.sin(TAU * f * t) * Math.exp(-dk * t); if (t < 0.006) v += (Math.random() * 2 - 1) * (1 - t / 0.006); d[i] = v * 0.32; }
   });
   A.buf.thud = synth(0.32, (d, n, sr) => {
-    let ph = 0, lp = 0;
-    for (let i = 0; i < n; i++) { const t = i / sr; ph += (75 - 35 * Math.min(1, t / 0.2)) / sr; lp += ((Math.random() * 2 - 1) - lp) * 0.05; d[i] = (Math.sin(TAU * ph) * 0.9 + lp * 1.2) * Math.exp(-11 * t); }
+    let ph = 0, lp1 = 0;
+    for (let i = 0; i < n; i++) { const t = i / sr; ph += (75 - 35 * Math.min(1, t / 0.2)) / sr; lp1 += ((Math.random() * 2 - 1) - lp1) * 0.05; d[i] = (Math.sin(TAU * ph) * 0.9 + lp1 * 1.2) * Math.exp(-11 * t); }
   });
   A.buf.tick = synth(0.035, (d, n, sr) => { for (let i = 0; i < n; i++) { const t = i / sr; d[i] = Math.sin(TAU * 1700 * t) * Math.exp(-90 * t) * 0.35; } });
   A.buf.bulk = synth(0.2, (d, n, sr) => {
@@ -656,8 +819,8 @@ function makeSounds() {
   });
   // запасное «пр-р-р», если не загрузился мем
   A.buf.fart = synth(0.75, (d, n, sr) => {
-    let ph = 0, lp = 0;
-    for (let i = 0; i < n; i++) { const t = i / sr, k = t / 0.75; ph += (95 - 40 * k + 12 * Math.sin(t * 40)) / sr; const pulse = (ph % 1) < 0.18 ? 1 : -0.2; lp += (pulse - lp) * 0.08; d[i] = lp * Math.min(1, t / 0.02) * Math.pow(1 - k, 0.7) * (0.6 + 0.4 * Math.sin(t * 150)) * 0.9; }
+    let ph = 0, lp1 = 0;
+    for (let i = 0; i < n; i++) { const t = i / sr, k = t / 0.75; ph += (95 - 40 * k + 12 * Math.sin(t * 40)) / sr; const pulse = (ph % 1) < 0.18 ? 1 : -0.2; lp1 += (pulse - lp1) * 0.08; d[i] = lp1 * Math.min(1, t / 0.02) * Math.pow(1 - k, 0.7) * (0.6 + 0.4 * Math.sin(t * 150)) * 0.9; }
   });
 }
 function loadMeme() {
@@ -674,13 +837,23 @@ function play(name, vol = 1, rate = 1) {
     const gn = A.ctx.createGain(); gn.gain.value = vol; s.connect(gn); gn.connect(A.master); s.start();
   } catch (e) { /* тишина */ }
 }
+// Голос по степени усталости; варианты, выключенные на экране «Звуки», не звучат.
+let lastVoice = '';
+function playVoice(tier, vol = 0.75) {
+  let list = VOICES.filter((v) => v.tier === tier && !S.voiceOff[v.id]);
+  if (!list.length) list = VOICES.filter((v) => v.tier === tier);
+  let v = pick(list); if (list.length > 1 && v.id === lastVoice) v = pick(list.filter((x) => x.id !== lastVoice));
+  lastVoice = v.id; play('v_' + v.id, vol, 0.96 + Math.random() * 0.08);
+}
+function playMeme() { if (A && A.buf.meme) play('meme', 1); else play('fart', 0.9); }
 
 /* ================= игра ================= */
 let state = 'title', stateT = 0;
-let R = null, DONE = null, PLANS = null, briefNext = 'plan', toast = null;
+let R = null, DONE = null, PLANS = null, briefNext = 'plan', soundHit = { id: '', t: -9 };
 function go(st) { state = st; stateT = 0; }
-const costFor = (load) => 0.085 * Math.pow(load, 1.5);
-const baseGain = (load) => 0.9 * Math.pow(load, 1.2);
+// Баланс: повторов мало, каждый дорогой. Нагрузка = вес / рабочий вес.
+const costFor = (load) => 0.17 * Math.pow(load, 1.5);
+const baseGain = (load) => 2.0 * Math.pow(load, 1.2);
 const zoneMult = (f) => f >= 0.85 ? 2 : f >= 0.6 ? 1.5 : 1;
 function forecast(load, reps) {
   const cost = costFor(load), f = cost * reps;
@@ -688,11 +861,11 @@ function forecast(load, reps) {
   const word = f <= 0.6 ? 'ХАЛЯВА' : f <= 0.85 ? 'НОРМ' : f < 1 ? 'СМЕЛО' : 'ОБОСРЁШЬСЯ';
   const col = f <= 0.6 ? P.green : f <= 0.85 ? P.yellow : f < 1 ? P.orange : P.red;
   const v = f <= 0.6 ? f / 0.6 * 0.25 : f <= 0.85 ? 0.25 + (f - 0.6) / 0.25 * 0.25 : f < 1 ? 0.5 + (f - 0.85) / 0.15 * 0.25 : Math.min(1, 0.75 + (f - 1) / 0.3 * 0.25);
-  return { f, word, col, v, gain: Math.round(gain * (f < 1 ? 1.25 : 1)), cans: Math.round(reps * 2 + 15) };
+  return { f, word, col, v, gain: Math.round(gain * (f < 1 ? 1.25 : 1)), cans: Math.round(reps * 4 + 15) };
 }
 function makePlans() {
   const cap = capacity();
-  return [['ЛЕГКО', 0.8, 8], ['РАБОЧИЙ', 1.0, 9], ['НА ГРАНИ', 1.15, 10]].map(([name, k, reps]) => {
+  return [['ЛЕГКО', 0.8, 3], ['РАБОЧИЙ', 1.0, 4], ['НА ГРАНИ', 1.15, 5]].map(([name, k, reps]) => {
     const weight = Math.max(20, Math.round(k * cap / 5) * 5);
     return { name, weight, reps, fc: forecast(weight / cap, reps) };
   });
@@ -700,11 +873,12 @@ function makePlans() {
 function goPlan() { if (!gymOpen(S.gym)) { go('gyms'); return; } PLANS = makePlans(); go('plan'); }
 const gymOpen = (id) => !S.bans[id] || !!S.disguise[id];
 function startSet(weight, target, tut) {
-  const load = weight / capacity();
-  R = { weight, target, tut, load, cost: costFor(load), plates: platesFor(weight), build: buildOf(S),
+  // самочувствие каждый раз своё (±10%), и каждый повтор чуть разный — запас сил точно не угадать
+  const load = weight / capacity(), form = 0.9 + Math.random() * 0.2;
+  R = { weight, target, tut, load, form, cost: costFor(load) / form, repK: 1, plates: platesFor(weight), build: buildOf(S),
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
-    mode: 'lift', t: 0, idle: 0, spotLeft: 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0,
-    bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, planSaid: false, lastBulk: 0 };
+    mode: 'lift', t: 0, idle: 0, spotLeft: 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
+    bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, planSaid: false, fogSaid: false };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle', 0.7), 200);
 }
@@ -719,7 +893,11 @@ function completeRep(kind) {
   R.armed = false; R.atTop = true;
   if (kind === 'legend') { R.reps += 1; R.legend++; R.gains += base * 5; fx('ЛЕГЕНДА ×5', P.yellow, 34, 120); play('cheer', 0.8); play('clank', 0.7); bark('legend'); R.shake = 0.25; }
   else if (kind === 'spot') { R.reps += 0.5; R.spotted++; R.gains += base * z * 0.5; fx('+½', P.text, 30); play('clank', 0.6); }
-  else { R.reps += 1; if (z === 2) R.red++; R.gains += base * z; fx(z > 1 ? '+1  ×' + (z === 2 ? '2' : '1.5') : '+1', z === 2 ? P.bad : z > 1 ? P.yellow : P.text, z === 2 ? 30 : 26); play('clank', 0.7); }
+  else {
+    R.reps += 1; if (z === 2) R.red++; R.gains += base * z;
+    fx(z > 1 ? '+1  ×' + (z === 2 ? '2' : '1.5') : '+1', z === 2 ? P.bad : z > 1 ? P.yellow : P.text, z === 2 ? 30 : 26); play('clank', 0.7);
+    if (z > 1 && Math.random() < 0.6) setTimeout(() => playVoice('relief', 0.5), 260);
+  }
   if (!R.planSaid && R.reps >= R.target) { R.planSaid = true; setTimeout(() => { if (R && R.mode !== 'crash') { fx('ПЛАН ВЫПОЛНЕН', P.good, 24, 150); bark('plan'); } }, 350); }
 }
 function enterPush() {
@@ -730,7 +908,7 @@ function pushTap(x, y) {
   R.taps.push({ x, y, t: 0 });
   R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25));
   const before = R.burl; R.burl += 0.045 + Math.random() * 0.02;
-  if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) play('bulk', 0.9, 0.9 + R.burl * 0.4); else if (R.taps.length % 2) play('grunt1', 0.45, 1.15);
+  if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) play('bulk', 0.9, 0.9 + R.burl * 0.4); else playVoice('tap', 0.6);
   if (R.burl >= 1) { crash(); return; }
   if (R.pos >= 1) { R.mode = 'lift'; R.fat = 0.94; R.bark = null; S.pushSeen = true; completeRep('legend'); }
 }
@@ -750,7 +928,7 @@ function finishSet() {
   const old = buildOf(S), planDone = R.reps >= R.target;
   const total = R.gains * (planDone ? 1.25 : 1);
   const chestG = total * 0.7, armsG = total * 0.3;
-  const cansG = Math.round(Math.floor(R.reps) * 2 + R.red * 2 + R.legend * 10 + (planDone ? 15 : 0));
+  const cansG = Math.round(Math.floor(R.reps) * 4 + R.red * 3 + R.legend * 12 + (planDone ? 15 : 0));
   S.chest += chestG; S.arms += armsG; S.cans += cansG; S.sets++;
   for (const id of Object.keys(S.bans)) { S.bans[id]--; if (S.bans[id] <= 0) { delete S.bans[id]; delete S.disguise[id]; } }
   const reps = Math.floor(R.reps);
@@ -780,6 +958,7 @@ function setMood() {
 }
 function updateSet(dt) {
   R.t += dt; R.shake = Math.max(0, R.shake - dt);
+  R.beat += dt * (R.fat >= 0.6 ? lerp(1.3, 3.4, clamp((R.fat - 0.6) / 0.4, 0, 1)) : 1.2);
   if (R.bark) { R.bark.t -= dt; if (R.bark.t <= 0) R.bark = null; }
   if (R.barkQ > 0) { R.barkQ -= dt; if (R.barkQ <= 0 && R.mode === 'lift') bark(S.disguise[S.gym] ? 'disguise' : 'start'); }
   R.fx = R.fx.filter((f) => (f.t += dt) < f.life);
@@ -788,18 +967,20 @@ function updateSet(dt) {
   if (R.mode === 'lift') {
     if (hold && R.pos < 1) {
       R.idle = 0;
-      if (!R.pressing) { R.pressing = true; play(R.fat < 0.6 ? 'grunt1' : R.fat < 0.85 ? 'grunt2' : 'grunt3', 0.8); }
+      if (!R.pressing) { R.pressing = true; R.repK = 0.92 + Math.random() * 0.16; playVoice(R.fat < 0.6 ? 'light' : R.fat < 0.85 ? 'mid' : 'heavy'); }
       const dz = (R.pos > 0.38 && R.pos < 0.66) ? (1 - 0.62 * R.fat) : 1;
-      const v = 0.95 * (1 - 0.6 * R.fat) * dz / Math.pow(R.load, 0.6);
+      const v = 0.85 * (1 - 0.6 * R.fat) * dz / Math.pow(R.load, 0.6);
       const dp = Math.min(1 - R.pos, v * dt);
-      R.pos += dp; R.fat += R.cost * dp;
+      R.pos += dp; R.fat = Math.min(1, R.fat + R.cost * R.repK * dp);
+      if (R.fat >= 0.6 && !R.fogSaid) { R.fogSaid = true; if (R.tut) fx('ШКАЛА СПРЯТАЛАСЬ', P.yellow, 24, 150); }
       if (R.fat >= 0.85 && !R.redSaid) { R.redSaid = true; bark('red'); }
-      if (R.fat >= 1 && R.pos < 1) { R.fat = 1; enterPush(); }
+      // штанга встаёт, только оторвавшись от груди, — иначе дожим начинался бы сразу с аварии
+      if (R.fat >= 1 && R.pos >= 0.22 && R.pos < 1) enterPush();
       else if (R.pos >= 1) { R.pos = 1; if (R.armed) completeRep('normal'); }
     } else if (hold) { R.fat = Math.max(0, R.fat - 0.01 * dt); R.idle += dt; }
     else {
       R.pressing = false;
-      if (R.pos > 0) { R.pos = Math.max(0, R.pos - 1.5 * dt); if (R.pos === 0 && !R.atTop) play('thud', 0.2); }
+      if (R.pos > 0) R.pos = Math.max(0, R.pos - 1.5 * dt);
       R.idle += dt;
     }
     if (R.pos < 0.85) R.atTop = false;
@@ -819,18 +1000,18 @@ function updateSet(dt) {
   } else if (R.mode === 'crash') {
     R.crashT += dt;
     R.pos = Math.max(0, R.fromPos * (1 - R.crashT / 0.15));
-    if (!R.impact && R.crashT >= 0.15) { R.impact = true; R.shake = 0.5; play('thud', 0.9); if (A && A.buf.meme) play('meme', 1); else play('fart', 0.9); }
+    if (!R.impact && R.crashT >= 0.15) { R.impact = true; R.shake = 0.5; play('thud', 0.9); playMeme(); }
   }
 }
 
 /* ================= отрисовка подхода ================= */
-const SPX = 104;
-function spotterX() { if (R.mode === 'spot') return SPX + 56 * easeOut(R.spotT / 0.3); return SPX; }
+const SPX = 100;
+function spotterX() { return R.mode === 'spot' ? SPX + 46 * easeOut(R.spotT / 0.3) : SPX; }
 function drawSpotter() {
   const id = GYMS[S.gym].spot, shock = R.mode === 'push' || R.mode === 'crash';
   const pose = R.mode === 'spot' || shock ? 'down' : 'cross', mood = shock ? 'shock' : R.mode === 'spot' ? 'focus' : 'smug';
   g.save(); g.translate(spotterX() - SPX, 0);
-  layer('sp-' + id + pose + mood, 0, 150, 230, 240, (c) => person(c, SPX, 388, 1.02, Object.assign({}, NPC[id], { arms: pose, mood })));
+  layer('sp-' + id + pose + mood, 0, 60, 250, 330, (c) => person(c, SPX, 388, WS, Object.assign({}, NPC[id], { arms: pose, mood })));
   g.restore();
 }
 function barTrack(x, top, bot, t, stuck, armed) {
@@ -854,7 +1035,12 @@ function spotBtn(x, y, n, hotS) {
   if (hotS) textOl(g, 'СТРАХОВКА', x + 36, y + 6, font(700, 15, FF.head), P.yellow, 5, 'left');
   hot(x - 32, y - 32, hotS ? 150 : 64, 64, callSpot);
 }
-function repLabel(v) { const n = Math.floor(v); return (n === 0 && v % 1 ? '' : String(n)) + (v % 1 ? '½' : ''); }
+function heart(x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s / 10, s / 10);
+  g.beginPath(); g.moveTo(0, 8); g.bezierCurveTo(-12, -1, -7, -11, 0, -4); g.bezierCurveTo(7, -11, 12, -1, 0, 8);
+  g.fillStyle = '#FF5A4E'; g.fill(); g.lineWidth = 2; g.strokeStyle = INK; g.stroke(); g.restore();
+}
+const repLabel = (v) => { const n = Math.floor(v); return (n === 0 && v % 1 ? '' : String(n)) + (v % 1 ? '½' : ''); };
 function stink(x, y, s) {
   g.save(); g.translate(x, y); g.scale(s, s);
   for (const [dx, dy, r, col] of [[-30, 0, 34, 'rgba(142,154,74,.5)'], [10, -16, 40, 'rgba(123,106,58,.45)'], [44, 4, 30, 'rgba(142,154,74,.5)'], [0, 18, 28, 'rgba(160,170,90,.45)']]) {
@@ -872,31 +1058,33 @@ function fly(x, y, ph) {
 }
 function drawSet() {
   const id = S.gym, b = R.build, disg = !!S.disguise[id], crash = R.mode === 'crash', ct = R.crashT;
+  OLD = SET_OL;
   let z = 1;
   if (crash) z = ct < 1.4 ? 1 + 0.16 * easeOut((ct - 0.25) / 0.45) : 1 + 0.16 * (1 - easeOut((ct - 1.4) / 0.5));
   const sh = R.shake > 0 ? R.shake * 12 : 0;
   g.save();
-  if (z !== 1 || sh) { const cx = 300, cy = 250; g.translate(cx + (Math.random() - 0.5) * sh, cy + (Math.random() - 0.5) * sh); g.scale(z, z); g.translate(-cx, -cy); }
-  layer('setbg-' + id, 0, 0, W, H, (c) => drawSetBg(c, id));
+  if (z !== 1 || sh) { const cx = 300, cy = 300; g.translate(cx + (Math.random() - 0.5) * sh, cy + (Math.random() - 0.5) * sh); g.scale(z, z); g.translate(-cx, -cy); }
+  layer('setbg-' + id, 0, 0, W, H, (c) => drawSetStage(c, id));
   drawSpotter();
   const trem = (R.mode === 'push' || (R.fat > 0.85 && R.mode === 'lift' && holding() && R.pos < 1)) ? 1.8 : 0;
   const jx = trem ? (Math.random() - 0.5) * trem : 0, jy = trem ? (Math.random() - 0.5) * trem : 0;
-  const Hn = handPos(R.pos);
-  g.save(); g.translate(BX + jx, BY + jy); g.scale(BS, BS); drawBenchBack(g, Hn, b, R.plates); g.restore();
-  layer('body-' + b.toFixed(2), 140, 170, 350, 190, (c) => { c.translate(BX, BY); c.scale(BS, BS); drawBenchBody(c, b); });
-  const mood = setMood(), hx = BX - 128 * BS, hy = BY - 121 * BS;
+  const Hn = handPos(R.pos, b);
+  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingBack(g, Hn, b); g.restore();
+  layer('body-' + b.toFixed(2), 150, 200, 340, 190, (c) => { c.translate(BX, BY); c.scale(WS, WS); drawLyingBody(c, b); });
+  const mood = setMood(), hs = toScreen(HEAD_C);
   g.save(); if (trem) g.translate((Math.random() - 0.5) * trem, (Math.random() - 0.5) * trem);
-  layer('head-' + mood + (disg ? 'd' : ''), hx - 60, hy - 50, 120, 100, (c) => head(c, hx, hy, 26 * BS, { mood, band: true, mustache: disg, shades: disg }));
+  layer('head-' + mood + (disg ? 'd' : ''), hs[0] - 70, hs[1] - 70, 140, 140, (c) => { c.translate(BX, BY); c.scale(WS, WS); headSide(c, HEAD_C[0], HEAD_C[1], HEADR, { mood, band: true, mustache: disg, shades: disg }); });
   g.restore();
-  g.save(); g.translate(BX + jx, BY + jy); g.scale(BS, BS); drawBenchFront(g, Hn, b, R.plates); g.restore();
+  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingFront(g, Hn, b, R.plates); g.restore();
   if (crash) drawCrashWorld(ct);
   g.restore();
+  OLD = 3;
   if (crash) drawCrashHud(ct); else drawSetHud();
 }
 function drawSetHud() {
-  const pushing = R.mode === 'push';
+  const pushing = R.mode === 'push', b = R.build;
   if (pushing) layer('redvig', 0, 0, W, H, (c) => { const gr = c.createRadialGradient(360, 210, 120, 360, 210, 520); gr.addColorStop(0, 'rgba(200,30,20,0)'); gr.addColorStop(1, 'rgba(200,30,20,.55)'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
-  barTrack(410, 114, 194, R.pos, pushing, R.armed);
+  barTrack(380, toScreen(handPos(1, b))[1], toScreen(handPos(0, b))[1], R.pos, pushing, R.armed);
   // кнопка «поставить штангу»
   const done = R.reps >= R.target, canRack = R.mode === 'lift';
   const pulse = done ? 0.5 + 0.5 * Math.sin(R.t * 6) : 0;
@@ -916,7 +1104,7 @@ function drawSetHud() {
     textOl(g, repLabel(R.reps) || '0', 418, 76, font(700, 52, FF.head), '#FFFFFF', 7, 'right');
     textOl(g, '/' + R.target, 422, 76, font(700, 28, FF.head), done ? P.good : P.dim, 6, 'left');
   }
-  fatigueMeter(800, 74, 26, 270, R.fat, { glow: pushing, shake: pushing || R.fat > 0.92 });
+  fatigueMeter(800, 74, 26, 270, R.fat, { glow: pushing, shake: pushing, t: R.t, beat: R.beat });
   if (R.spotLeft > 0) spotBtn(44, 344, R.spotLeft, pushing);
   // подсказки обучения
   if (R.tut && R.mode === 'lift') {
@@ -927,53 +1115,56 @@ function drawSetHud() {
       textOl(g, 'ДЕРЖИ ПАЛЕЦ', hx, hy + 84, font(700, 18, FF.head), '#FFFFFF', 5, 'center');
     }
     if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
-    if (R.reps >= 2 && R.reps < 4 && R.fat < 0.6) textOl(g, 'Жми дальше — ждём жёлтую и красную зону', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
-    if (R.fat >= 0.85 && R.reps < R.target + 2) textOl(g, 'Красная зона: рост ×2. Риск растёт', 560, 372, font(600, 16, FF.body), P.bad, 5, 'center');
+    if (R.reps >= R.target) textOl(g, 'План есть! Ещё разок — или «ГОТОВО» слева вверху', 560, 372, font(600, 16, FF.body), P.good, 5, 'center');
+    else if (R.fat >= 0.6) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
-  if (R.bark) bubble(g, spotterX() + 24, 192, R.bark.text, { side: 'right', font: font(700, 14, FF.body) });
+  if (R.bark) bubble(g, spotterX() + 30, 116, R.bark.text, { side: 'right', font: font(700, 14, FF.body) });
   for (const f of R.fx) { const k = f.t / f.life; g.save(); g.globalAlpha = 1 - Math.max(0, k - 0.6) / 0.4; textOl(g, f.text, f.x, f.y - k * 40, font(700, f.size, FF.head), f.col, 6, 'center'); g.restore(); }
 }
 function drawCrashWorld(t) {
-  const hip = [BX + 4 * BS, BY - 108 * BS];
-  if (t > 0.3) { const a = easeOut((t - 0.3) / 0.6); g.save(); g.globalAlpha = a; stink(hip[0] + 52, hip[1] + 4, 0.75 + 0.3 * a); g.restore(); }
-  if (t > 0.7) { fly(hip[0] + 110, hip[1] - 74, 0); fly(hip[0] + 10, hip[1] - 96, 2); }
-  if (t > 0.9) { g.save(); g.translate(hip[0] + 118, hip[1] + 62); g.rotate(-0.08); textOl(g, 'пр-р-р…', 0, 0, font(700, 30, FF.hand), '#E8E0B8', 6, 'center'); g.restore(); }
+  const hip = toScreen([12, PAD - 10]);
+  if (t > 0.3) { const a = easeOut((t - 0.3) / 0.6); g.save(); g.globalAlpha = a; stink(hip[0] + 40, hip[1] - 16, 0.8 + 0.3 * a); g.restore(); }
+  if (t > 0.7) { fly(hip[0] + 90, hip[1] - 96, 0); fly(hip[0] + 6, hip[1] - 116, 2); }
+  if (t > 0.9) { g.save(); g.translate(hip[0] + 120, hip[1] + 40); g.rotate(-0.08); textOl(g, 'пр-р-р…', 0, 0, font(700, 30, FF.hand), '#E8E0B8', 6, 'center'); g.restore(); }
   const fid = GYMS[S.gym].filmer;
   if (t > 1.4) {
-    const fx2 = lerp(W + 70, 566, easeOut((t - 1.4) / 0.6));
-    g.save(); g.translate(fx2 - 566, 0);
-    layer('npc-' + fid, 500, 160, 140, 232, (c) => person(c, 566, 390, 0.88, Object.assign({}, NPC[fid], { arms: 'phone', mood: 'shock', rec: true })));
+    const fx2 = lerp(W + 90, 628, easeOut((t - 1.4) / 0.6));
+    g.save(); g.translate(fx2 - 628, 0);
+    layer('npc-' + fid, 548, 60, 170, 330, (c) => person(c, 628, 388, WS, Object.assign({}, NPC[fid], { arms: 'phone', mood: 'shock', rec: true })));
     g.restore();
-    if (t > 2.0) { textOl(g, '!', fx2 + 30, 206, font(700, 30, FF.head), P.yellow, 6, 'center'); textOl(g, '!', spotterX() + 30, 190, font(700, 30, FF.head), P.yellow, 6, 'center'); }
+    if (t > 2.0) { textOl(g, '!', fx2 + 44, 92, font(700, 30, FF.head), P.yellow, 6, 'center'); textOl(g, '!', spotterX() + 44, 92, font(700, 30, FF.head), P.yellow, 6, 'center'); }
   }
   if (t > 2.2) {
-    const cx2 = lerp(W + 90, 748, easeOut((t - 2.2) / 0.8));
-    g.save(); g.translate(cx2 - 748, 0);
-    layer('npc-galya', 680, 150, 164, 240, (c) => { person(c, 748, 388, 0.92, Object.assign({}, NPC.galya, { arms: 'mop', mood: 'stern' })); blob(c, [{ k: 'poly', p: [[794, 352], [826, 352], [822, 388], [798, 388]], c: '#9AA3AC' }, { k: 'arc', x: 810, y: 354, r: 14, a0: Math.PI, a1: TAU, w: 2.5, c: '#5A6068' }], 2); });
+    const cx2 = lerp(W + 110, 762, easeOut((t - 2.2) / 0.8));
+    g.save(); g.translate(cx2 - 762, 0);
+    layer('npc-galya', 668, 50, 176, 340, (c) => { person(c, 762, 388, WS, Object.assign({}, NPC.galya, { arms: 'mop', mood: 'stern' })); blob(c, [{ k: 'poly', p: [[808, 346], [840, 346], [836, 388], [812, 388]], c: '#9AA3AC' }, { k: 'arc', x: 824, y: 348, r: 14, a0: Math.PI, a1: TAU, w: 2.5, c: '#5A6068' }], 2); });
     g.restore();
   }
 }
 function drawCrashHud(t) {
   if (t > 0.9) {
     const k = easeOut((t - 0.9) / 0.22), s = lerp(2.3, 1, k);
-    g.save(); g.translate(204, 76); g.rotate(-0.08); g.scale(s, s); g.globalAlpha = Math.min(1, k * 1.5);
+    g.save(); g.translate(400, 62); g.rotate(-0.06); g.scale(s, s); g.globalAlpha = Math.min(1, k * 1.5);
     box(g, -168, -38, 336, 76, 10, 'rgba(244,242,236,.95)', P.red, 5);
     g.strokeStyle = P.red; g.lineWidth = 2; rrPath(g, -159, -29, 318, 58, 6); g.stroke();
     text(g, 'ОБОСРАЛСЯ!', 0, 2, font(400, 34, FF.logo), P.red, 'center', 'middle');
     g.restore();
   }
-  if (t > 3.0) bubble(g, 732, 206, ['Ну всё, милок.', 'На выход.']);
+  if (t > 3.0 && t < 3.6) bubble(g, 730, 102, ['Ну всё, милок.', 'На выход.']);
   if (t > 1.0 && t < 3.4) text(g, 'тап — дальше', 422, 380, font(500, 13, FF.body), 'rgba(244,242,236,.6)', 'center');
   if (t > 3.4) {
-    const y = lerp(-160, 12, easeOut((t - 3.4) / 0.35));
-    box(g, 470, y, 362, 142, 16, 'rgba(23,25,30,.95)', 'rgba(244,242,236,.2)', 1.5);
-    polaroid(g, 520, y + 52, 62, -0.08);
-    text(g, 'ТЕБЯ ВЫГНАЛИ', 566, y + 34, font(700, 22, FF.head), P.text, 'left');
-    text(g, GYMS[S.gym].from, 566, y + 56, font(400, 14, FF.body), P.dim, 'left');
-    text(g, 'Пустят через 3 тренировки.', 566, y + 76, font(400, 14, FF.body), P.dim, 'left');
+    const k = easeOut((t - 3.4) / 0.35);
+    g.fillStyle = `rgba(10,11,14,${0.45 * k})`; g.fillRect(0, 0, W, H);
+    if (t > 3.6) bubble(g, 730, 102, ['Ну всё, милок.', 'На выход.']);
+    const x = 232, y = lerp(H + 20, 112, k);
+    box(g, x, y, 380, 162, 16, 'rgba(23,25,30,.97)', 'rgba(244,242,236,.25)', 1.5);
+    polaroid(g, x + 52, y + 64, 64, -0.08);
+    text(g, 'ТЕБЯ ВЫГНАЛИ', x + 96, y + 40, font(700, 24, FF.head), P.text, 'left');
+    text(g, GYMS[S.gym].from, x + 96, y + 64, font(400, 14, FF.body), P.dim, 'left');
+    text(g, 'Пустят через 3 тренировки.', x + 96, y + 84, font(400, 14, FF.body), P.dim, 'left');
     const price = maskPrice(), can = S.cans >= price;
-    btn(486, y + 92, 196, 40, 'СМЕНИТЬ КАЧАЛКУ  ▸', 'primary', () => go('gyms'), 16);
-    btn(692, y + 92, 126, 40, 'В УСАХ · ' + price, can ? 'ghost' : 'off', () => wearMask(S.gym), 15);
+    btn(x + 16, y + 106, 210, 40, 'СМЕНИТЬ КАЧАЛКУ  ▸', 'primary', () => go('gyms'), 16);
+    btn(x + 236, y + 106, 128, 40, 'В УСАХ · ' + price, can ? 'ghost' : 'off', () => wearMask(S.gym), 15);
   }
 }
 function maskPrice() { const allBanned = GYM_IDS.every((id) => !gymOpen(id)); return allBanned && S.cans < MASK_PRICE ? Math.max(0, S.cans) : MASK_PRICE; }
@@ -997,6 +1188,7 @@ function drawTitle() {
   btn(492, 272, 116, 42, 'КАЧАЛКИ', 'ghost', () => go('gyms'), 17);
   btn(616, 272, 116, 42, 'КАК ИГРАТЬ', 'ghost', () => { briefNext = 'plan'; go('brief'); }, 17);
   iconBtn(12, 10, S.muted ? 'mute' : 'sound', () => setMuted(!S.muted));
+  btn(60, 10, 92, 40, 'ЗВУКИ', 'ghost', () => go('sounds'), 16);
   cans(762, 30, S.cans);
   text(g, APP_VERSION, 14, 380, font(400, 11, FF.body), 'rgba(244,242,236,.45)', 'left');
 }
@@ -1005,6 +1197,7 @@ function tipIcon(kind, x, y) {
   if (kind === 'hold') { g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.ellipse(0, 4, 9, 11, 0, 0, TAU); g.fill(); g.beginPath(); g.moveTo(0, -18); g.lineTo(-7, -10); g.moveTo(0, -18); g.lineTo(7, -10); g.stroke(); }
   if (kind === 'release') { g.beginPath(); g.arc(0, 2, 10, 0, TAU); g.stroke(); g.beginPath(); g.moveTo(0, -16); g.lineTo(0, -4); g.stroke(); lockIcon(g, 0, -20, 0.7, P.text); }
   if (kind === 'zone') { box(g, -6, -16, 12, 32, 6, null, P.text, 2); g.fillStyle = P.green; g.fillRect(-4, 2, 8, 12); g.fillStyle = P.yellow; g.fillRect(-4, -6, 8, 8); g.fillStyle = P.red; g.fillRect(-4, -14, 8, 8); }
+  if (kind === 'heart') { g.restore(); heart(x, y, 12); return; }
   if (kind === 'tap') { for (const r of [6, 12, 18]) { g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke(); } }
   if (kind === 'poo') pooIcon(g, 0, 2, 0.9);
   g.restore();
@@ -1014,11 +1207,13 @@ function drawBrief() {
   layer('valera', 0, 120, 260, 270, (c) => person(c, 130, 384, 1.12, Object.assign({}, NPC.valera, { arms: 'hips', mood: 'focus' })));
   iconBtn(12, 10, 'back', () => go('title'));
   text(g, 'ТРЕНЕР ВАЛЕРА ОБЪЯСНЯЕТ', 64, 36, font(700, 20, FF.head), P.text, 'left');
-  const tips = [['hold', 'Держи палец на экране — жмёшь штангу вверх.'], ['release', 'Дожал до верха — отпусти и опусти. Это повтор.'], ['zone', 'Жёлтая зона — рост ×1,5, красная — ×2.'], ['tap', 'Штанга встала — тапай часто, это дожим. Или зови страховку.'], ['poo', 'Но живот не железный. Перегнёшь — авария и позор.']];
-  tips.forEach(([k, s], i) => { const y = 82 + i * 50; box(g, 270, y - 21, 548, 42, 12, P.ui2); tipIcon(k, 296, y); text(g, s, 324, y + 5, font(500, 15, FF.body), P.text, 'left'); });
+  const tips = [['hold', 'Держи палец на экране — жмёшь штангу вверх.'], ['release', 'Дожал до верха — отпусти и опусти до груди. Это повтор.'],
+    ['zone', 'Жёлтая зона — рост ×1,5, красная — ×2. Но там шкала прячется.'], ['heart', 'Сколько сил осталось — смотри на лицо, дрожь и пульс.'],
+    ['tap', 'Штанга встала — тапай часто, это дожим. Или зови страховку.'], ['poo', 'Живот не железный. Перегнёшь — авария и позор.']];
+  tips.forEach(([k, s], i) => { const y = 78 + i * 43; box(g, 270, y - 18, 548, 36, 11, P.ui2); tipIcon(k, 296, y); text(g, s, 324, y + 5, font(500, 14.5, FF.body), P.text, 'left'); });
   const tut = briefNext === 'tut';
-  if (tut) text(g, 'Первая тренировка: 40 кг × 8', 270, 362, font(700, 20, FF.hand), '#E9DFC6', 'left');
-  btn(596, 334, 222, 44, tut ? 'ПОНЯЛ, ЖМЁМ  ▸' : 'ПОНЯТНО  ▸', 'primary', () => { if (tut) startSet(40, 8, true); else goPlan(); }, 18);
+  if (tut) text(g, 'Первая тренировка: 40 кг × 4', 270, 362, font(700, 20, FF.hand), '#E9DFC6', 'left');
+  btn(596, 334, 222, 44, tut ? 'ПОНЯЛ, ЖМЁМ  ▸' : 'ПОНЯТНО  ▸', 'primary', () => { if (tut) startSet(40, 4, true); else goPlan(); }, 18);
 }
 function drawPlan() {
   panelBg();
@@ -1031,14 +1226,38 @@ function drawPlan() {
     box(g, x, y, w, h, 16, P.ui2, i === 1 ? 'rgba(244,193,46,.55)' : 'rgba(244,242,236,.12)', 1.5);
     text(g, p.name, x + 18, y + 30, font(600, 15, FF.head), P.dim, 'left');
     text(g, p.weight + ' кг × ' + p.reps, x + 18, y + 72, font(700, 34, FF.head), P.text, 'left');
-    platesFor(p.weight).forEach((pl, j) => { const [col, ry] = PLATE[pl]; box(g, x + 210 + j * 12, y + 48 - ry * 0.35, 10, ry * 0.7, 3, col, INK, 1.5); });
+    platesFor(p.weight).forEach((pl, j) => { const [col, r] = PLATE[pl]; box(g, x + 210 + j * 12, y + 48 - r * 0.75, 10, r * 1.5, 3, col, INK, 1.5); });
     gauge(x + w / 2, y + 150, 46, p.fc.v, 12);
     text(g, p.fc.word, x + w / 2, y + 178, font(700, 20, FF.head), p.fc.col, 'center');
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
     hot(x, y, w, h, () => startSet(p.weight, p.reps, false));
   });
-  text(g, 'Валера: смелее план — больше рост. Перегнёшь — выгонят.', 24, 346, font(700, 20, FF.hand), '#E9DFC6', 'left');
+  text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 346, font(700, 20, FF.hand), '#E9DFC6', 'left');
   text(g, 'Тапни по плану, чтобы начать', 820, 346, font(400, 13, FF.body), P.dim, 'right');
+}
+function drawSounds() {
+  panelBg();
+  iconBtn(12, 10, 'back', () => go('title'));
+  text(g, 'ЗВУКИ НАПРЯЖЕНИЯ', 64, 28, font(700, 20, FF.head), P.text, 'left');
+  text(g, 'Тапни — послушать. Галочка — звук звучит в игре.', 64, 48, font(400, 13, FF.body), P.dim, 'left');
+  iconBtn(792, 10, S.muted ? 'mute' : 'sound', () => setMuted(!S.muted));
+  const items = VOICES.concat([{ id: 'meme', name: 'Мем аварии', use: 'когда придавило' }]);
+  items.forEach((v, i) => {
+    const x = 24 + (i % 3) * 272, y = 70 + Math.floor(i / 3) * 68, w = 252, h = 60;
+    const playing = soundHit.id === v.id && stateT - soundHit.t < 0.7, on = v.id === 'meme' || !S.voiceOff[v.id];
+    box(g, x, y, w, h, 14, playing ? 'rgba(244,193,46,.16)' : P.ui2, playing ? P.yellow : 'rgba(244,242,236,.12)', playing ? 2 : 1.5);
+    blob(g, [{ k: 'ell', x: x + 30, y: y + 30, rx: 17, ry: 17, c: P.yellow }], 2);
+    g.fillStyle = INK; g.beginPath(); g.moveTo(x + 25, y + 21); g.lineTo(x + 38, y + 30); g.lineTo(x + 25, y + 39); g.closePath(); g.fill();
+    text(g, v.name, x + 58, y + 27, font(700, 18, FF.head), on ? P.text : P.dim, 'left');
+    text(g, v.use, x + 58, y + 46, font(400, 12, FF.body), P.dim, 'left');
+    hot(x, y, v.id === 'meme' ? w : w - 50, h, () => { ensureAudio(); soundHit = { id: v.id, t: stateT }; if (v.id === 'meme') playMeme(); else play('v_' + v.id, 0.85); });
+    if (v.id !== 'meme') {
+      box(g, x + w - 38, y + 19, 22, 22, 6, on ? P.green : null, on ? INK : P.dim, 2);
+      if (on) { g.strokeStyle = '#FFFFFF'; g.lineWidth = 2.6; g.lineCap = 'round'; g.beginPath(); g.moveTo(x + w - 32, y + 30); g.lineTo(x + w - 28, y + 35); g.lineTo(x + w - 21, y + 25); g.stroke(); }
+      hot(x + w - 50, y, 50, h, () => { if (on) S.voiceOff[v.id] = true; else delete S.voiceOff[v.id]; save(); });
+    }
+  });
+  text(g, S.muted ? 'Звук выключен — включи кнопкой справа вверху.' : 'Напиши, какие оставить, — лишние уберу. Выключенные здесь в игре не звучат.', 24, 368, font(500, 13.5, FF.body), S.muted ? P.bad : P.dim, 'left');
 }
 function drawDone() {
   const d = DONE, k = easeOut(stateT / 1.2), b = lerp(d.oldB, d.newB, k);
@@ -1079,7 +1298,7 @@ function drawGyms() {
     const here = S.gym === id, banned = !!S.bans[id], disg = !!S.disguise[id];
     box(g, x, y, w, h, 16, P.ui2, here ? 'rgba(244,193,46,.6)' : 'rgba(244,242,236,.12)', here ? 2.5 : 1.5);
     g.save(); rrPath(g, x + 8, y + 8, w - 16, 112, 10); g.clip();
-    layer('thumb-' + id, x + 8, y + 8, w - 16, 112, (c) => { c.translate(x + 8, y + 8); c.scale((w - 16) / W, 112 / H * 1.0); c.translate(0, 0); drawSetBg(c, id); });
+    layer('thumb-' + id, x + 8, y + 8, w - 16, 112, (c) => { c.translate(x + 8, y + 8); c.scale((w - 16) / W, 112 / H); drawSetBg(c, id); });
     if (banned && !disg) { g.fillStyle = 'rgba(14,15,19,.55)'; g.fillRect(x + 8, y + 8, w - 16, 112); }
     g.restore();
     if (banned && !disg) { polaroid(g, x + w - 40, y + 44, 40, 0.12); g.save(); g.translate(x + w / 2 - 20, y + 66); g.rotate(-0.12); box(g, -54, -16, 108, 32, 4, 'rgba(244,242,236,.92)', P.red, 3); text(g, 'ИЗГНАН', 0, 1, font(400, 15, FF.logo), P.red, 'center', 'middle'); g.restore(); }
@@ -1107,6 +1326,7 @@ function draw() {
   else if (state === 'set') drawSet();
   else if (state === 'done') drawDone();
   else if (state === 'gyms') drawGyms();
+  else if (state === 'sounds') drawSounds();
 }
 const PTR = new Map(); let KEYHOLD = false;
 function toLogical(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
@@ -1180,6 +1400,16 @@ window.ER = {
   hold(v) { if (v) { PTR.set(-1, 'hold'); onPress(560, 280); } else PTR.delete(-1); },
   tap(x = 560, y = 280) { onPress(x, y); },
   step(sec, fps = 60) { const dt = 1 / fps; for (let i = 0; i < Math.round(sec * fps); i++) update(dt); draw(); },
+  audioInfo() {
+    if (!A) return null;
+    const out = {};
+    for (const [k, b] of Object.entries(A.buf)) {
+      const d = b.getChannelData(0); let pk = 0, sum = 0, nan = 0, zc = 0;
+      for (let i = 0; i < d.length; i++) { const v = d[i]; if (!Number.isFinite(v)) { nan++; continue; } pk = Math.max(pk, Math.abs(v)); sum += v * v; if (i && (d[i - 1] < 0) !== (v < 0)) zc++; }
+      out[k] = { dur: +b.duration.toFixed(2), peak: +pk.toFixed(2), rms: +Math.sqrt(sum / d.length).toFixed(3), nan, zcrHz: Math.round(zc / 2 / b.duration) };
+    }
+    return out;
+  },
   buttons() { return BTN.map((b) => [Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)]); },
 };
 })();

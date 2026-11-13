@@ -59,7 +59,11 @@ const REP = `(() => { ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && 
 await shot('01-title');
 await click(612, 231); check(await ev('ER.state') === 'brief', 'кнопка «Играть» → объяснение тренера');
 await shot('02-brief');
-await click(707, 356); check(await ev('ER.state') === 'set' && await ev('ER.R.tut'), '«Понял, жмём» → обучающий подход 40 кг × 8');
+// звуки синтезированы на первом касании: проверяем, что голоса не пустые и без мусора
+const ai = await ev('ER.audioInfo()');
+if (ai) { for (const [k, v] of Object.entries(ai)) log(`  звук ${k.padEnd(9)} ${v.dur}с пик ${v.peak} rms ${v.rms} ~${v.zcrHz} Гц${v.nan ? ' NaN!' : ''}`);
+  check(Object.entries(ai).filter(([k]) => k.startsWith('v_')).every(([, v]) => v.nan === 0 && v.peak > 0.3 && v.rms > 0.03), 'все 9 голосов напряжения синтезированы без сбоев'); }
+await click(707, 356); check(await ev('ER.state') === 'set' && await ev('ER.R.tut') && await ev('ER.R.target') === 4, '«Понял, жмём» → обучающий подход 40 кг × 4');
 await ev('ER.step(0.9)'); await shot('03-set-start');
 let r; let n = 0;
 do { r = await ev(REP); n++; if (n === 3) { await ev('ER.hold(true); ER.step(0.25)'); await shot('04-press-green'); await ev('ER.hold(false); ER.step(0.8)'); } } while (r.mode === 'lift' && r.fat < 0.6 && n < 30);
@@ -68,7 +72,7 @@ await ev('ER.hold(true); ER.step(0.3)'); await shot('05-press-yellow'); await ev
 do { r = await ev(REP); n++; } while (r.mode === 'lift' && r.fat < 0.86 && n < 40);
 await ev('ER.hold(true); ER.step(0.3)'); await shot('06-press-red'); await ev('ER.hold(false); ER.step(0.8)');
 do { r = await ev(REP); n++; } while (r.mode === 'lift' && n < 50);
-check(r.mode === 'push', 'усталость 100% → дожим (повторов ' + r.reps + ')');
+check(r.mode === 'push', 'усталость 100% → дожим (' + JSON.stringify(r) + ', попыток ' + n + ')');
 for (let i = 0; i < 5; i++) await ev('ER.tap(600 + Math.random() * 120, 240 + Math.random() * 60); ER.step(0.12)');
 await shot('07-push');
 const burl = await ev('ER.R.burl'); check(burl > 0.2 && burl < 1, 'тапы поднимают Бурлометр (' + burl.toFixed(2) + ')');
@@ -86,7 +90,7 @@ log('  итоги обучения:', JSON.stringify(d1)); check(d1.tut && d1.ch
 await click(705, 352); check(await ev('ER.state') === 'plan', '«Ещё подход» → выбор плана');
 await shot('10-plan');
 const plans = await ev('ER.PLANS.map((p) => p.weight + "×" + p.reps + " " + p.fc.word)'); log('  планы:', plans.join(' | '));
-await click(700, 190); check(await ev('ER.state === "set" && ER.R.target') === 10, 'тап по третьей карточке → подход «на грани»');
+await click(700, 190); check(await ev('ER.state === "set" && ER.R.target') === 5, 'тап по третьей карточке → подход «на грани»');
 n = 0; do { r = await ev(REP); n++; } while (r.mode === 'lift' && n < 40);
 check(r.mode === 'push', 'дошли до дожима (' + r.reps + ' повторов)');
 await ev('ER.step(2.5)'); let m = await ev('ER.R.mode'); for (let i = 0; i < 120 && m === 'push'; i++) { await ev('ER.step(0.1)'); m = await ev('ER.R.mode'); }
@@ -96,16 +100,16 @@ await ev('ER.step(0.5)'); await shot('11-crash-0.5s');
 await ev('ER.step(0.6)'); await shot('12-crash-stamp');
 await ev('ER.step(1.2)'); await shot('13-crash-crowd');
 await ev('ER.step(1.6)'); await shot('14-crash-card');
-await click(584, 124); check(await ev('ER.state') === 'gyms', '«Сменить качалку» → список качалок');
+await click(353, 238); check(await ev('ER.state') === 'gyms', '«Сменить качалку» → список качалок');
 await shot('15-gyms');
 
 // 3. Другие качалки и усы
 await click(400, 324); check(await ev('ER.state === "plan" && ER.S.gym') === 'school', 'переход в школьный спортзал');
-await click(420, 190); for (let i = 0; i < 4; i++) await ev(REP);
+await click(420, 190); for (let i = 0; i < 3; i++) await ev(REP);
 await ev('ER.hold(true); ER.step(0.25)'); await shot('16-school'); await ev('ER.hold(false); ER.step(0.6); ER.rackBar(); ER.step(1.5)');
 check(await ev('ER.S.bans.podval') === 2, 'тренировка в школе сократила изгнание до 2');
 await ev('ER.S.gym = "glamour"; ER.goPlan(); ER.startSet(ER.PLANS[1].weight, ER.PLANS[1].reps, false)');
-for (let i = 0; i < 6; i++) await ev(REP);
+for (let i = 0; i < 3; i++) await ev(REP);
 await ev('ER.hold(true); ER.step(0.25)'); await shot('17-glamour'); await ev('ER.hold(false); ER.step(0.6); ER.rackBar(); ER.step(1.5)');
 await ev('ER.go("gyms"); ER.step(0.05)'); await shot('18-gyms-banned');
 const cansBefore = await ev('ER.S.cans');
@@ -114,7 +118,18 @@ await click(420, 190); for (let i = 0; i < 2; i++) await ev(REP); await ev('ER.s
 await shot('19-disguise-set');
 await ev('ER.go("title"); ER.step(0.1)'); await shot('20-title-disguise');
 
-// 4. Живой цикл кадров тоже не падает
+// 4. Экран «Звуки»: послушать и выключить вариант
+await click(106, 30); check(await ev('ER.state') === 'sounds', 'кнопка «Звуки» → экран вариантов');
+await click(120, 100); await ev('ER.step(0.2)'); await shot('21-sounds');
+await click(252, 100); check(await ev('ER.S.voiceOff.mmf') === true, 'галочка выключает вариант «Ммм-ф»');
+await click(252, 100); check(!(await ev('ER.S.voiceOff.mmf')), 'повторный тап включает обратно');
+
+// 5. Прокачанный герой на скамье — заметно мощнее
+await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.startSet(80, 4, false)');
+await ev(REP); await ev('ER.hold(true); ER.step(0.3)'); await shot('22-buff-set'); await ev('ER.hold(false); ER.step(0.6)');
+await ev('ER.go("title"); ER.step(0.1)'); await shot('23-buff-title');
+
+// 6. Живой цикл кадров тоже не падает
 await ev('ER.pause(false)'); await sleep(1500);
 
 log('\nОшибки страницы: ' + (errors.length ? '\n' + errors.join('\n') : 'нет'));
