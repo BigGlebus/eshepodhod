@@ -1,0 +1,1346 @@
+<title>Ещё разок!</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Oswald:wght@500;600;700&family=Rubik+Mono+One&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Макет страницы: «журнал тренировки» — экраны идут сверху вниз по ходу игры (номер = порядок),
+   подпись справа от экрана; ниже — механики с галочками и вопросы, внизу липкая плашка «скопировать выбор». */
+:root {
+  --bg: #ECEEEA;        /* магнезия на ладонях */
+  --surface: #FFFFFF;
+  --ink: #1B1D22;
+  --muted: #5A616B;
+  --line: #D2D7D2;
+  --chip: #E1E5E0;
+  --accent: #2459C4;    /* синий блин, 20 кг */
+  --hazard: #F2BE22;    /* жёлтый блин, 15 кг */
+  --danger: #C8382A;    /* красный блин, 25 кг */
+  --ok: #2A8549;        /* зелёный блин, 10 кг */
+  --frame: #121418;
+  --bar-bg: #1B1D22;
+  --bar-fg: #F2F1EC;
+  --font-logo: 'Rubik Mono One', 'Arial Black', Impact, sans-serif;
+  --font-head: 'Oswald', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --font-body: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-hand: 'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141619; --surface: #1D2025; --ink: #ECEEEF; --muted: #9AA2AC; --line: #2D3239; --chip: #272B32;
+    --accent: #6E9BFF; --hazard: #F5C842; --danger: #FF6B57; --ok: #4CC274; --frame: #050607;
+    --bar-bg: #F2F1EC; --bar-fg: #16181C; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141619; --surface: #1D2025; --ink: #ECEEEF; --muted: #9AA2AC; --line: #2D3239; --chip: #272B32;
+  --accent: #6E9BFF; --hazard: #F5C842; --danger: #FF6B57; --ok: #4CC274; --frame: #050607;
+  --bar-bg: #F2F1EC; --bar-fg: #16181C; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 1260px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 0; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+
+/* шапка */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-bottom: 44px; }
+.eyebrow { font-family: var(--font-head); font-weight: 600; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.logo { font-family: var(--font-logo); font-weight: 400; font-size: clamp(40px, 8.4vw, 96px); line-height: .98; letter-spacing: -.01em; }
+.logo::after { content: ""; display: block; height: 14px; width: min(520px, 92%); margin-top: 18px; border-radius: 2px;
+  background: repeating-linear-gradient(-45deg, var(--hazard) 0 16px, var(--ink) 16px 32px); }
+.lead { max-width: 64ch; font-size: 18px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 4px 0 0; }
+.facts li { background: var(--chip); border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+.note-hand { font-family: var(--font-hand); font-size: 24px; line-height: 1.2; color: var(--danger); }
+
+/* секции */
+section { padding-block: 40px; border-top: 1px solid var(--line); }
+.sec-head { display: grid; gap: 8px; margin-bottom: 28px; }
+.sec-head h2 { font-family: var(--font-head); font-weight: 700; font-size: clamp(28px, 4vw, 40px); text-transform: uppercase; letter-spacing: .02em; line-height: 1.1; }
+.sec-head p { max-width: 70ch; color: var(--muted); }
+
+/* экраны */
+.screens { display: grid; gap: 44px; }
+.screen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 0; }
+@media (min-width: 1120px) { .screen { grid-template-columns: minmax(0, 844px) minmax(0, 1fr); gap: 32px; align-items: center; } }
+.phone { position: relative; background: var(--frame); border-radius: 30px; padding: 12px 16px; max-width: 100%;
+  box-shadow: 0 22px 44px -26px rgba(0,0,0,.55); }
+.phone::before { content: ""; position: absolute; left: 6px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: #2C3037; }
+.phone canvas { display: block; width: 100%; height: auto; aspect-ratio: 844 / 390; max-width: 100%; border-radius: 14px; background: #1A1C21; }
+@media (max-width: 600px) { .phone { border-radius: 18px; padding: 6px 9px; } .phone canvas { border-radius: 9px; } .phone::before { left: 2px; width: 4px; height: 4px; margin-top: -2px; } }
+figcaption { display: grid; gap: 10px; min-width: 0; }
+.cap-title { display: flex; align-items: baseline; gap: 12px; }
+.num { font-family: var(--font-head); font-weight: 700; font-size: 15px; min-width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center;
+  background: var(--hazard); color: #1B1D22; flex: none; transform: translateY(-3px); }
+figcaption h3 { font-family: var(--font-head); font-weight: 600; font-size: 26px; text-transform: uppercase; letter-spacing: .02em; line-height: 1.15; }
+figcaption ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 60ch; }
+figcaption li::marker { color: var(--muted); }
+
+/* механики */
+.legend { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 14px; color: var(--muted); align-items: center; }
+.tag { display: inline-block; font-family: var(--font-head); font-weight: 600; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 1px 8px; border-radius: 4px; vertical-align: 2px; white-space: nowrap; }
+.tag.core { background: var(--hazard); color: #1B1D22; }
+.tag.later { background: var(--chip); color: var(--ink); }
+.tag.idea { border: 1.5px dashed var(--muted); color: var(--muted); padding: 0 7px; }
+.mech-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 370px), 1fr)); gap: 18px; margin-top: 22px; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 10px; min-width: 0; }
+.group h3 { font-family: var(--font-head); font-weight: 600; font-size: 21px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+.group > p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.mech { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.mech:first-of-type { border-top: 0; }
+.mech input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--accent); cursor: pointer; }
+.mech b { font-weight: 500; }
+.mech .d { display: block; font-size: 14.5px; color: var(--muted); margin-top: 2px; }
+.mech:has(input:checked) b { color: var(--ink); }
+input:focus-visible, button:focus-visible, .opt:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* вопросы */
+.questions { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); }
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.q h3 { font-family: var(--font-head); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.q > p { font-size: 14.5px; color: var(--muted); }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt { position: relative; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 15px; cursor: pointer; background: var(--bg); }
+.opt input { position: absolute; opacity: 0; pointer-events: none; }
+.opt:has(input:checked) { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.opt .rec { font-family: var(--font-head); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); font-weight: 600; }
+.opt:has(input:checked) .rec { color: var(--hazard); }
+.q input[type="text"] { font: inherit; font-size: 15px; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+
+/* прототип */
+.proto { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.step { border-left: 4px solid var(--hazard); padding: 4px 0 4px 16px; min-width: 0; }
+.step h3 { font-family: var(--font-head); font-weight: 600; font-size: 19px; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+.step p { color: var(--muted); font-size: 15px; }
+
+/* липкая плашка выбора */
+.pickbar { position: sticky; bottom: 0; z-index: 5; margin-top: 36px; background: var(--bar-bg); color: var(--bar-fg);
+  border-radius: 16px 16px 0 0; padding: 14px max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.pickbar .count { font-family: var(--font-head); font-weight: 600; font-size: 18px; letter-spacing: .02em; }
+.pickbar small { display: block; font-size: 13px; opacity: .75; font-family: var(--font-body); font-weight: 400; letter-spacing: 0; }
+.pickbar button { font: 600 16px var(--font-head); letter-spacing: .06em; text-transform: uppercase; border: 0; border-radius: 999px; padding: 11px 20px;
+  background: var(--hazard); color: #1B1D22; cursor: pointer; }
+#copyFallback { width: 100%; min-height: 120px; font: 13px/1.4 ui-monospace, Consolas, monospace; border-radius: 10px; padding: 10px; border: 0; }
+footer { padding-block: 28px 40px; color: var(--muted); font-size: 14px; }
+footer code { font-size: 13px; background: var(--chip); padding: 1px 6px; border-radius: 4px; }
+@media (prefers-reduced-motion: no-preference) { .opt, .mech input { transition: background-color .15s, color .15s, border-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">Рабочее название · новая игра для телефона</p>
+    <h1 class="logo">Ещё разок!</h1>
+    <p class="lead">Юмористическая игра про качалку. Игрок приходит в зал, сам составляет тренировку и делает подходы тапами. Чем ближе к пределу — тем сильнее растут мышцы. Перегнул — авария прямо на скамье, и из этой качалки тебя выгоняют.</p>
+    <ul class="facts">
+      <li>Телефон горизонтально, 844×390</li>
+      <li>PWA на canvas, как «Звукач»</li>
+      <li>7 экранов-макетов</li>
+      <li>31 механика на выбор</li>
+    </ul>
+  </header>
+
+  <section id="screens">
+    <div class="sec-head">
+      <h2>Экраны по ходу игры</h2>
+      <p>Номер — порядок, в котором игрок их видит. Во время подхода на экране почти нет текста: состояние видно по лицу персонажа и по одной шкале. Все объяснения — на экранах до и после.</p>
+    </div>
+    <div class="screens">
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="hub" width="844" height="390" role="img" aria-label="Макет: зал-подвал, скамья подсвечена как следующее упражнение"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">1</span><h3>Зал</h3></div>
+          <ul>
+            <li>Первая качалка — подвал «Железяка». Снаряд следующего упражнения подсвечен: тап по нему — и начинается подход.</li>
+            <li>Соседи по залу говорят короткими пузырями. Здесь, а не во время подхода.</li>
+            <li>У входа доска позора: намёк, чем кончается перебор.</li>
+            <li>Внизу — программа тренировки и кнопка «Начать».</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="plan" width="844" height="390" role="img" aria-label="Макет: конструктор тренировки с прогнозом тренера"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">2</span><h3>Конструктор тренировки</h3></div>
+          <ul>
+            <li>Слева упражнения, в середине твой план: вес, подходы × повторы.</li>
+            <li>Тренер Валера показывает прогноз стрелкой: халява, норм, смело, обосрёшься. Смелее план — больше рост и выше риск.</li>
+            <li>Перекус перед залом — тоже ставка: шаурма даёт силу, но живот стартует не с нуля.</li>
+            <li>Внизу видно, какие мышцы вырастут. Программа «Ноги потом» — тренер это заметит.</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="set" width="844" height="390" role="img" aria-label="Макет: подход жима лёжа, шкала усталости справа"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">3</span><h3>Подход: «держи — жми»</h3></div>
+          <ul>
+            <li>Держишь палец где угодно — штанга идёт вверх. Отпустил наверху — повтор засчитан. Отпустил рано — штанга падает.</li>
+            <li>Посередине мёртвая точка (полосатая зона на дорожке): там штанга замедляется, а с усталостью почти встаёт.</li>
+            <li>Справа шкала усталости цветами блинов: зелёная, жёлтая, красная. Повторы в красной зоне стоят ×2.</li>
+            <li>Усталость видно по лицу: краснеет, потеет, вздувается вена. Подсказка «Держи» — только на первых повторах.</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="push" width="844" height="390" role="img" aria-label="Макет: дожим в отказе, бурлометр почти полный"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">4</span><h3>Дожим на грани</h3></div>
+          <ul>
+            <li>Усталость дошла до 100% — штанга встала. Частые тапы дожимают её по сантиметру.</li>
+            <li>Каждый тап поднимает Бурлометр. Дожал — легендарный повтор ×5.</li>
+            <li>Не уверен — зови страховку: Толян поможет, повтор засчитают наполовину, но подколку ты услышишь.</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="fail" width="844" height="390" role="img" aria-label="Макет: провал на скамье, зал оборачивается, заходит уборщица"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">5</span><h3>Авария</h3></div>
+          <ul>
+            <li>Бурлометр лопнул: стоп-кадр, «пр-р-р», музыка обрывается, весь зал оборачивается, кто-то снимает сторис.</li>
+            <li>Заходит тётя Галя со шваброй. Тренировка окончена, награда за неё сгорает.</li>
+            <li>Из этой качалки тебя выгнали: фото на доске позора, дальше — другая качалка на карте.</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="done" width="844" height="390" role="img" aria-label="Макет: итоги тренировки, персонаж позирует у зеркала"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">6</span><h3>Итоги</h3></div>
+          <ul>
+            <li>Персонаж красуется у зеркала. Мышцы заметно растут от тренировки к тренировке.</li>
+            <li>Повторы, красная зона, дожимы, рекорд. Рост по группам мышц — ноги опять по нулям.</li>
+            <li>Тренер подводит итог одной фразой. Программу можно сохранить и повторить в один тап.</li>
+          </ul>
+        </figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone"><canvas data-screen="map" width="844" height="390" role="img" aria-label="Макет: карта района с качалками"></canvas></div>
+        <figcaption>
+          <div class="cap-title"><span class="num">7</span><h3>Карта качалок</h3></div>
+          <ul>
+            <li>Выгнали — идёшь в другую. У каждой качалки свои снаряды, соседи, шутки и свой бонус.</li>
+            <li>Хорошие залы пускают по входному тесту: «Гламур» — только с жимом 60 кг.</li>
+            <li>В зал, откуда выгнали, можно вернуться через 3 тренировки или сразу — в накладных усах.</li>
+          </ul>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <form id="pick" autocomplete="off">
+  <section id="mechanics">
+    <div class="sec-head">
+      <h2>Механики на выбор</h2>
+      <p>Отметь, что берём. Галочки уже стоят на том, что я советую для первого прототипа. Внизу страницы кнопка — она соберёт выбор в текст, его можно вставить в чат.</p>
+    </div>
+    <div class="legend">
+      <span><span class="tag core">ядро</span> советую в первый прототип</span>
+      <span><span class="tag later">потом</span> после прототипа</span>
+      <span><span class="tag idea">идея</span> на подумать</span>
+    </div>
+
+    <div class="mech-grid">
+      <div class="group">
+        <h3>Подход: управление</h3>
+        <p>У каждого типа упражнений своё управление, одно на всё упражнение.</p>
+        <label class="mech"><input type="checkbox" id="m-hold" data-name="«Держи — жми» для жима и приседа" checked><span><b>«Держи — жми»</b> <span class="tag core">ядро</span><span class="d">Жим и присед. Держишь палец — штанга идёт вверх, отпускаешь наверху — повтор. Посередине мёртвая точка, где штанга замедляется. Отпустил рано — штанга падает.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-rhythm" data-name="«Раз-два» для гантелей"><span><b>«Раз-два»</b> <span class="tag later">потом</span><span class="d">Гантели на бицепс. Левый и правый большой палец по очереди под счёт тренера. Сбился с ритма — персонаж раскачивается и «читит», пользы меньше.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-mash" data-name="Частые тапы для подтягиваний"><span><b>Частые тапы</b> <span class="tag later">потом</span><span class="d">Подтягивания. Тапаешь быстро — тянешься вверх, перестал — сползаешь. Подбородок над перекладиной — повтор.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-plank" data-name="Удержание в зоне для планки"><span><b>Удержание в зоне</b> <span class="tag idea">идея</span><span class="d">Планка. Ведёшь пальцем чуть вверх-вниз и держишь дрожащую полоску в зелёной зоне. Время — это повторы.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-dead" data-name="Становая как самое рискованное упражнение"><span><b>Становая</b> <span class="tag idea">идея</span><span class="d">Самое тяжёлое и самое опасное для живота упражнение. Открывается позже, Бурлометр растёт вдвое быстрее.</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Усталость и риск</h3>
+        <p>Главный выбор игрока: остановиться или выжать ещё один.</p>
+        <label class="mech"><input type="checkbox" id="m-zones" data-name="Шкала усталости с зонами, красная ×2" checked><span><b>Шкала с зонами</b> <span class="tag core">ядро</span><span class="d">Зелёная, жёлтая, красная — цвета блинов. Повторы в красной зоне дают ×2 к росту мышц. Остановился в зелёной — почти ничего не вырос.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-face" data-name="Усталость видна по лицу персонажа" checked><span><b>Усталость на лице</b> <span class="tag core">ядро</span><span class="d">Краснеет, потеет, вздувается вена, дрожат руки, глаза лезут на лоб. Цифры почти не нужны — смотришь на персонажа.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-push" data-name="Отказ и дожим с Бурлометром" checked><span><b>Отказ и дожим</b> <span class="tag core">ядро</span><span class="d">На 100% штанга встаёт. Частые тапы дожимают, но каждый тап поднимает Бурлометр. Дожал — легендарный повтор ×5. Перегнул — авария.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-spot" data-name="Страховка соседа раз за тренировку" checked><span><b>Страховка</b> <span class="tag core">ядро</span><span class="d">Раз за тренировку можно позвать соседа. Он поможет дожать, повтор засчитают наполовину, а потом подколет.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-food" data-name="Перекус перед залом"><span><b>Перекус перед залом</b> <span class="tag later">потом</span><span class="d">Гречка — спокойно. Протеин — плюс сила. Шаурма с вокзала — плюс сила, но Бурлометр стартует с 40%. Энергетик — быстрее, но дрожат руки.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-crowd" data-name="Зрители: выпендрёж за бонус"><span><b>Зрители</b> <span class="tag idea">идея</span><span class="d">Когда кто-то смотрит, персонаж выпендривается: каждый повтор ценнее, но устаёшь быстрее.</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Авария и смена качалки</h3>
+        <p>Провал двигает игру дальше, а не только наказывает.</p>
+        <label class="mech"><input type="checkbox" id="m-fail" data-name="Анимация аварии и конец тренировки" checked><span><b>Авария = конец тренировки</b> <span class="tag core">ядро</span><span class="d">Стоп-кадр, «пр-р-р», зал оборачивается, уборщица со шваброй. Награда за тренировку сгорает.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-ban" data-name="Изгнание и переход в другую качалку" checked><span><b>Изгнание</b> <span class="tag core">ядро</span><span class="d">Из этой качалки выгоняют, идёшь в другую на карте района. Новая качалка — новые снаряды, соседи и шутки.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-mask" data-name="Возвращение через 3 тренировки или в усах"><span><b>Вернуться в усах</b> <span class="tag later">потом</span><span class="d">В старую качалку пускают через 3 тренировки («забыли») или сразу — в накладных усах и очках за банки протеина.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-run" data-name="Режим-забег: выгнали отовсюду — заново"><span><b>Режим-забег</b> <span class="tag idea">идея</span><span class="d">Выгнали из всех качалок района — забег окончен, часть мышц остаётся. Для тех, кому мало обычного режима.</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Свои тренировки</h3>
+        <p>Что делать с тренировками, которые составляет игрок.</p>
+        <label class="mech"><input type="checkbox" id="m-level" data-name="Тренировка = уровень, прогноз тренера" checked><span><b>Тренировка = уровень</b> <span class="tag core">ядро</span><span class="d">Игрок сам выбирает упражнения, вес и подходы. Смелее план — больше рост и выше риск. Тренер показывает прогноз заранее.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-tutor" data-name="Обучение: готовая первая тренировка" checked><span><b>Обучение</b> <span class="tag core">ядро</span><span class="d">Первая тренировка готова: жим, присед, бицепс по одному подходу. Валера объясняет упражнение на экране перед подходом, а не во время.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-plateau" data-name="Плато: одинаковая программа растит хуже"><span><b>Плато</b> <span class="tag later">потом</span><span class="d">Одну и ту же программу мышцы «запоминают»: на третий раз рост ×0,5. Приходится менять упражнения — для этого и нужен конструктор.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-doms" data-name="Крепатура: вчерашние мышцы устают быстрее"><span><b>Крепатура</b> <span class="tag later">потом</span><span class="d">Мышцы, которые качал вчера, «забиты»: усталость стартует выше. Отсюда смысл делить дни на грудь, спину и ноги.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-legs" data-name="Шутка про пропуск дня ног"><span><b>Пропуск дня ног</b> <span class="tag later">потом</span><span class="d">Если не качать ноги, персонаж становится «шкафом на спичках». Видно сразу, тренер ворчит.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-save" data-name="Сохранённые программы и обмен кодом"><span><b>Свои программы</b> <span class="tag later">потом</span><span class="d">Программу можно назвать («Ноги потом») и повторить в один тап. Позже — делиться кодом программы с друзьями.</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Прогрессия</h3>
+        <p>Что игрок копит между тренировками.</p>
+        <label class="mech"><input type="checkbox" id="m-body" data-name="Мышцы растут и видны на персонаже" checked><span><b>Мышцы на персонаже</b> <span class="tag core">ядро</span><span class="d">Грудь, спина, ноги, руки растут отдельно и видны: дрищ → крепыш → качок → шкаф.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-weight" data-name="Рабочий вес растёт, блины по цветам"><span><b>Рабочий вес</b> <span class="tag later">потом</span><span class="d">Сильнее мышцы — больше блинов на штанге. Блины цветные, как на соревнованиях: красный 25, синий 20, жёлтый 15, зелёный 10.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-cans" data-name="Валюта — банки протеина"><span><b>Банки протеина</b> <span class="tag later">потом</span><span class="d">Валюта. Тратится на перекус, шмотки (майка-алкоголичка, пояс, напульсники, треники с лампасами) и маскировку.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-gate" data-name="Входные тесты в новые качалки"><span><b>Входные тесты</b> <span class="tag later">потом</span><span class="d">Хорошие качалки пускают по нормативу: «Гламур» — с жимом 60 кг, «Арсенал» — с приседом 80.</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Юмор</h3>
+        <p>Шутки живут между подходами и в провале, не мешая самому подходу.</p>
+        <label class="mech"><input type="checkbox" id="m-barks" data-name="Реплики качков в зале" checked><span><b>Реплики качков</b> <span class="tag core">ядро</span><span class="d">Короткие пузыри между подходами: «Братиш, ты долго ещё?», «Это мой тренажёр с 2009 года», «Мел возьми, скользко же».</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-sound" data-name="Лёгкие звуки, заготовленные при запуске" checked><span><b>Звуки</b> <span class="tag core">ядро</span><span class="d">Кряхтение (своё на каждую стадию усталости), лязг блинов, свисток, «пр-р-р» и обрыв музыки при аварии. Звуки готовятся один раз при запуске, потом только проигрываются — без тяжёлого синтеза во время игры.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-anim" data-name="Анимация аварии со зрителями" checked><span><b>Сцена аварии</b> <span class="tag core">ядро</span><span class="d">Стоп-кадр, наезд камеры, мухи, все оборачиваются, фитоняшка снимает сторис, уборщица: «Ну всё, милок. На выход».</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-ach" data-name="Достижения-подколки"><span><b>Достижения-подколки</b> <span class="tag later">потом</span><span class="d">«Дал газу» — первая авария. «Шкаф на спичках». «Трус» — ни разу не зашёл в красную зону. «Легенда подвала» — 10 дожимов.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-npc" data-name="Свои персонажи в каждой качалке"><span><b>Хозяева качалок</b> <span class="tag later">потом</span><span class="d">Физрук со свистком в школьном зале, фитоняшка со сторис в «Гламуре», дед-ветеран, который жмёт больше тебя, в «Арсенале».</span></span></label>
+      </div>
+
+      <div class="group">
+        <h3>Повторная игра</h3>
+        <p>Зачем возвращаться завтра.</p>
+        <label class="mech"><input type="checkbox" id="m-daily" data-name="Тренировка дня"><span><b>Тренировка дня</b> <span class="tag later">потом</span><span class="d">Одна готовая тренировка в день, одинаковая для всех (по дате). Можно сравниться с друзьями.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-records" data-name="Личные рекорды и доска рекордов зала"><span><b>Рекорды</b> <span class="tag later">потом</span><span class="d">Личный рекорд по каждому упражнению и доска рекордов качалки с выдуманными соседями, которых хочется обогнать.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-endless" data-name="Режим «До отказа»"><span><b>Режим «До отказа»</b> <span class="tag idea">идея</span><span class="d">Одно упражнение, вес растёт с каждым повтором, играешь до аварии. Партия на минуту — на рекорд.</span></span></label>
+        <label class="mech"><input type="checkbox" id="m-heroes" data-name="Разные персонажи на выбор"><span><b>Разные персонажи</b> <span class="tag idea">идея</span><span class="d">Студент-дрищ, батя, фитоняшка, ветеран. У каждого своя сила и свой Бурлометр.</span></span></label>
+      </div>
+    </div>
+  </section>
+
+  <section id="questions">
+    <div class="sec-head">
+      <h2>Решить до разработки</h2>
+      <p>Выбери вариант в каждом вопросе. Пометка «советую» — моё предложение. Ответы тоже попадут в текст для чата.</p>
+    </div>
+    <div class="questions">
+      <div class="q" role="radiogroup" aria-labelledby="q1h">
+        <h3 id="q1h">Как назвать игру?</h3>
+        <p>«Ещё разок!» — то, что кричит тренер, и ровно то, о чём игра: выжать ещё один повтор и не опозориться.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-name" value="«Ещё разок!»">«Ещё разок!» <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-name" value="«До отказа»">«До отказа»</label>
+          <label class="opt"><input type="radio" name="q-name" value="«Качалка»">«Качалка»</label>
+          <label class="opt"><input type="radio" name="q-name" value="«Не обосрись!»">«Не обосрись!»</label>
+        </div>
+        <input type="text" id="q-name-own" placeholder="Или своё название" aria-label="Своё название">
+      </div>
+
+      <div class="q" role="radiogroup" aria-labelledby="q2h">
+        <h3 id="q2h">Какой стиль графики?</h3>
+        <p>Мультяшный вектор, как на макетах, рисуется кодом и быстро работает на слабых телефонах. Пиксель-арт тоже лёгкий, но нужны нарисованные спрайты.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-style" value="мультяшный вектор, как на макетах">Как на макетах <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-style" value="пиксель-арт">Пиксель-арт</label>
+          <label class="opt"><input type="radio" name="q-style" value="рисунок в тетрадке">Рисунок в тетрадке</label>
+        </div>
+      </div>
+
+      <div class="q" role="radiogroup" aria-labelledby="q3h">
+        <h3 id="q3h">Насколько грубо шутим?</h3>
+        <p>Важно, если игру увидят дети или коллеги. От этого зависят слова на экране аварии и звук.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-tone" value="прямо: «обосрался», звук «пр-р-р»">Прямо: «обосрался» и «пр-р-р»</label>
+          <label class="opt"><input type="radio" name="q-tone" value="намёком: «авария», облачко и мухи">Намёком: «авария», облачко, мухи <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-tone" value="переключатель в настройках">Переключатель в настройках</label>
+        </div>
+      </div>
+
+      <div class="q" role="radiogroup" aria-labelledby="q4h">
+        <h3 id="q4h">С чего начать прототип?</h3>
+        <p>Если сам подход не весело делать десять раз подряд, остальное не спасёт. Поэтому советую начать с него.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-start" value="один подход: жим, усталость, дожим, авария, итоги">Один подход до аварии <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-start" value="зал и обучающая тренировка из трёх упражнений">Зал и обучение</label>
+          <label class="opt"><input type="radio" name="q-start" value="конструктор тренировок">Конструктор</label>
+        </div>
+      </div>
+
+      <div class="q" role="radiogroup" aria-labelledby="q5h">
+        <h3 id="q5h">Насколько больно выгоняют?</h3>
+        <p>Мягко — авария стоит одной тренировки и смены зала. Жёстко — как рогалик: выгнали отовсюду, начинай заново.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-ban" value="мягко: можно вернуться позже или в усах">Мягко <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-ban" value="жёстко: забег до изгнания отовсюду">Жёстко</label>
+          <label class="opt"><input type="radio" name="q-ban" value="оба режима">Оба режима</label>
+        </div>
+      </div>
+
+      <div class="q" role="radiogroup" aria-labelledby="q6h">
+        <h3 id="q6h">Кто главный герой?</h3>
+        <p>Один герой проще для прототипа. Выбор героя можно добавить потом.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-hero" value="один парень-новичок в повязке">Новичок в повязке <span class="rec">советую</span></label>
+          <label class="opt"><input type="radio" name="q-hero" value="выбор: парень или девушка">Парень или девушка</label>
+          <label class="opt"><input type="radio" name="q-hero" value="несколько героев с разной силой">Несколько героев</label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="prototype">
+    <div class="sec-head">
+      <h2>Первый прототип, как я его вижу</h2>
+      <p>Маленький и играбельный — чтобы проверить, смешно ли и хочется ли «ещё разок».</p>
+    </div>
+    <div class="proto">
+      <div class="step"><h3>Один зал, одно упражнение</h3><p>Подвал «Железяка», жим лёжа, управление «держи — жми», шкала усталости, лицо персонажа.</p></div>
+      <div class="step"><h3>Дожим и авария</h3><p>Отказ, частые тапы, Бурлометр, страховка. Сцена аварии со зрителями и уборщицей.</p></div>
+      <div class="step"><h3>Итоги и «ещё раз»</h3><p>Экран итогов с ростом мышц и кнопкой «Ещё подход». Звук заготовлен при запуске, фон рисуется один раз.</p></div>
+      <div class="step"><h3>Потом — по результату</h3><p>Если подход затягивает: конструктор, второе упражнение, вторая качалка и карта.</p></div>
+    </div>
+  </section>
+
+  <div class="pickbar" role="region" aria-label="Выбор для прототипа">
+    <div class="count"><span id="pickCount">Отмечено механик: 0</span><small id="pickHint">Ответов на вопросы: 0 из 6</small></div>
+    <button type="button" id="copyBtn">Скопировать выбор</button>
+    <textarea id="copyFallback" hidden readonly aria-label="Текст выбора"></textarea>
+  </div>
+  </form>
+
+  <footer>
+    Файлы проекта: <code>E:\Claude Project\sandbox\kachalka</code> — эти макеты в <code>mockups\index.html</code>, механики текстом в <code>MECHANICS.md</code>.
+  </footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const W = 844, H = 390, TAU = Math.PI * 2;
+const INK = '#1B1C22';
+const P = {
+  skin: '#F2C29B', skinD: '#D9A27C', hair: '#3A2A22', band: '#E0402F', tank: '#F4F2EC', pants: '#2C3552', stripe: '#DDE2EA',
+  blue: '#2F6BD8', red: '#E0402F', yellow: '#F4C12E', green: '#36A35A', white: '#EDEDE8', orange: '#F08A24',
+  steel: '#B7BEC7', steelD: '#6F7883', iron: '#3E444D', ironD: '#2E333A',
+  wall: '#7F8B97', wallL: '#8E9AA6', wallD: '#6E7985', mortar: '#5D6873', panel: '#4F7D6C', panelD: '#3E6656',
+  floor: '#2A2D33', pad: '#3A3E47',
+  ui: '#17191E', ui2: '#22262D', ui3: '#2E333C', text: '#F4F2EC', dim: '#A5ACB6',
+  poo: '#7B4D28', cork: '#B98A55', paper: '#F3EBD7'
+};
+const FF = { logo: "'Rubik Mono One', 'Arial Black', sans-serif", head: "'Oswald', 'Arial Narrow', sans-serif", body: "'Rubik', system-ui, sans-serif", hand: "'Caveat', 'Comic Sans MS', cursive" };
+const font = (w, s, fam) => `${w} ${s}px ${fam}`;
+const lerp = (a, b, t) => a + (b - a) * t;
+const lp = (A, B, t) => [lerp(A[0], B[0], t), lerp(A[1], B[1], t)];
+function rng(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16), ch = [n >> 16, (n >> 8) & 255, n & 255];
+  const f = (v) => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k);
+  return `rgb(${f(ch[0])},${f(ch[1])},${f(ch[2])})`;
+}
+
+/* ---------- базовые примитивы ---------- */
+function rrPath(c, x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function box(c, x, y, w, h, r, fill, stroke, lw) {
+  rrPath(c, x, y, w, h, r);
+  if (fill) { c.fillStyle = fill; c.fill(); }
+  if (stroke) { c.lineWidth = lw || 2; c.strokeStyle = stroke; c.stroke(); }
+}
+function text(c, s, x, y, fnt, col, align = 'left', base = 'alphabetic') {
+  c.font = fnt; c.fillStyle = col; c.textAlign = align; c.textBaseline = base; c.fillText(s, x, y);
+}
+function textOl(c, s, x, y, fnt, col, lw = 6, align = 'center', base = 'alphabetic', ol = INK) {
+  c.font = fnt; c.textAlign = align; c.textBaseline = base; c.lineJoin = 'round';
+  c.lineWidth = lw; c.strokeStyle = ol; c.strokeText(s, x, y); c.fillStyle = col; c.fillText(s, x, y);
+}
+function shapePath(c, p) {
+  c.beginPath();
+  if (p.k === 'ell') c.ellipse(p.x, p.y, p.rx, p.ry, p.rot || 0, 0, TAU);
+  else if (p.k === 'rr') rrPath(c, p.x, p.y, p.w, p.h, p.r ?? 4);
+  else if (p.k === 'arc') c.arc(p.x, p.y, p.r, p.a0, p.a1);
+  else { c.moveTo(p.p[0][0], p.p[0][1]); for (let i = 1; i < p.p.length; i++) c.lineTo(p.p[i][0], p.p[i][1]); if (p.k === 'poly') c.closePath(); }
+}
+/* Мультяшная фигура: сначала общий контур всех частей, потом заливки — части сливаются в один силуэт. */
+function blob(c, parts, ol = 3) {
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+  const stroked = (p) => p.k === 'line' || p.k === 'arc';
+  if (ol > 0) for (const p of parts) {
+    shapePath(c, p); c.strokeStyle = INK;
+    if (stroked(p)) { c.lineWidth = p.w + ol * 2; c.stroke(); }
+    else { c.fillStyle = INK; c.fill(); c.lineWidth = ol * 2; c.stroke(); }
+  }
+  for (const p of parts) {
+    shapePath(c, p);
+    if (stroked(p)) { c.strokeStyle = p.c; c.lineWidth = p.w; c.stroke(); }
+    else { c.fillStyle = p.c; c.fill(); }
+  }
+  c.restore();
+}
+function ik(S, Hd, L1, L2, bend) {
+  const dx = Hd[0] - S[0], dy = Hd[1] - S[1];
+  const d = Math.max(1, Math.min(Math.hypot(dx, dy), L1 + L2 - 0.01));
+  const a = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
+  const ang = Math.atan2(dy, dx) + bend * a;
+  return [S[0] + Math.cos(ang) * L1, S[1] + Math.sin(ang) * L1];
+}
+
+/* ---------- лица ---------- */
+function face(c, x, y, r, mood) {
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = INK; c.fillStyle = INK;
+  const lw = Math.max(1.4, r * 0.085); c.lineWidth = lw;
+  const ex = r * 0.34, ey = y - r * 0.02, L = x - ex, R = x + ex;
+  const ln = (...a) => { c.beginPath(); c.moveTo(a[0], a[1]); for (let i = 2; i < a.length; i += 2) c.lineTo(a[i], a[i + 1]); c.stroke(); };
+  const dot = (cx, cy, rr) => { c.beginPath(); c.arc(cx, cy, rr, 0, TAU); c.fillStyle = INK; c.fill(); };
+  const white = (cx, cy, rx, ry) => { c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke(); };
+  const teeth = (w, h, yy) => {
+    rrPath(c, x - w / 2, yy, w, h, h * 0.3); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke();
+    c.lineWidth = lw * 0.55; ln(x - w * 0.18, yy, x - w * 0.18, yy + h); ln(x + w * 0.18, yy, x + w * 0.18, yy + h); ln(x - w / 2, yy + h / 2, x + w / 2, yy + h / 2); c.lineWidth = lw;
+  };
+  const sweat = (sx, sy, s) => {
+    c.beginPath(); c.moveTo(sx, sy - s); c.quadraticCurveTo(sx + s * 0.8, sy + s * 0.25, sx, sy + s * 0.65); c.quadraticCurveTo(sx - s * 0.8, sy + s * 0.25, sx, sy - s);
+    c.fillStyle = '#8FD3FF'; c.fill(); c.lineWidth = lw * 0.6; c.stroke(); c.lineWidth = lw;
+  };
+  const vein = (vx, vy, s) => { c.save(); c.strokeStyle = '#7A5BD0'; c.lineWidth = lw * 0.85; ln(vx, vy, vx + s * 0.3, vy + s * 0.35, vx - s * 0.1, vy + s * 0.62, vx + s * 0.25, vy + s); c.restore(); };
+  const nose = () => { c.lineWidth = lw * 0.8; c.beginPath(); c.arc(x + r * 0.03, y + r * 0.18, r * 0.09, 0.1 * Math.PI, 0.95 * Math.PI); c.stroke(); c.lineWidth = lw; };
+  switch (mood) {
+    case 'calm':
+      dot(L, ey, r * 0.085); dot(R, ey, r * 0.085);
+      ln(L - r * 0.14, ey - r * 0.25, L + r * 0.12, ey - r * 0.27); ln(R - r * 0.12, ey - r * 0.27, R + r * 0.14, ey - r * 0.25);
+      nose(); c.beginPath(); c.arc(x, y + r * 0.32, r * 0.24, 0.22 * Math.PI, 0.78 * Math.PI); c.stroke();
+      break;
+    case 'focus':
+      dot(L, ey, r * 0.085); dot(R, ey, r * 0.085);
+      ln(L - r * 0.17, ey - r * 0.32, L + r * 0.14, ey - r * 0.2); ln(R - r * 0.14, ey - r * 0.2, R + r * 0.17, ey - r * 0.32);
+      nose(); ln(x - r * 0.16, y + r * 0.56, x + r * 0.16, y + r * 0.56);
+      break;
+    case 'stern':
+      dot(L, ey, r * 0.08); dot(R, ey, r * 0.08);
+      ln(L - r * 0.17, ey - r * 0.3, L + r * 0.14, ey - r * 0.2); ln(R - r * 0.14, ey - r * 0.2, R + r * 0.17, ey - r * 0.3);
+      nose(); c.beginPath(); c.arc(x, y + r * 0.7, r * 0.2, 1.2 * Math.PI, 1.8 * Math.PI); c.stroke();
+      break;
+    case 'smug':
+      dot(L, ey + r * 0.03, r * 0.08); dot(R, ey + r * 0.03, r * 0.08);
+      ln(L - r * 0.15, ey - r * 0.06, L + r * 0.13, ey - r * 0.06); ln(R - r * 0.13, ey - r * 0.06, R + r * 0.15, ey - r * 0.06);
+      ln(L - r * 0.14, ey - r * 0.3, L + r * 0.12, ey - r * 0.26); ln(R - r * 0.12, ey - r * 0.38, R + r * 0.14, ey - r * 0.42);
+      nose(); ln(x - r * 0.2, y + r * 0.56, x + r * 0.08, y + r * 0.54, x + r * 0.24, y + r * 0.44);
+      break;
+    case 'strain': case 'max': {
+      const big = mood === 'max';
+      ln(L - r * 0.15, ey - r * 0.1, L + r * 0.1, ey, L - r * 0.15, ey + r * 0.1);
+      ln(R + r * 0.15, ey - r * 0.1, R - r * 0.1, ey, R + r * 0.15, ey + r * 0.1);
+      ln(L - r * 0.2, ey - r * 0.34, L + r * 0.14, ey - r * 0.18); ln(R - r * 0.14, ey - r * 0.18, R + r * 0.2, ey - r * 0.34);
+      teeth(big ? r * 0.72 : r * 0.56, big ? r * 0.3 : r * 0.22, y + r * 0.38);
+      vein(x + r * 0.4, y - r * 0.8, r * 0.32);
+      if (big) vein(x - r * 0.52, y - r * 0.76, r * 0.28);
+      sweat(x - r * 1.12, y - r * 0.4, r * 0.18); sweat(x + r * 1.18, y + r * 0.02, r * 0.15);
+      if (big) { c.lineWidth = lw * 0.9; ln(x - r * 1.35, y - r * 0.75, x - r * 1.6, y - r * 0.95); ln(x - r * 1.45, y - r * 0.12, x - r * 1.75, y - r * 0.12); ln(x + r * 1.4, y - r * 0.65, x + r * 1.65, y - r * 0.85); ln(x + r * 1.5, y - r * 0.32, x + r * 1.8, y - r * 0.32); }
+      break; }
+    case 'panic': case 'fail': case 'shock': {
+      const wr = mood === 'shock' ? r * 0.17 : r * 0.2;
+      white(L, ey, wr, wr * 1.15); white(R, ey, wr, wr * 1.15);
+      const px = mood === 'fail' ? r * 0.08 : 0;
+      dot(L + px, ey, r * 0.055); dot(R + px, ey, r * 0.055);
+      ln(L - r * 0.18, ey - r * 0.3, L + r * 0.12, ey - r * 0.44); ln(R - r * 0.12, ey - r * 0.44, R + r * 0.18, ey - r * 0.3);
+      nose();
+      if (mood === 'fail') ln(x - r * 0.26, y + r * 0.58, x - r * 0.13, y + r * 0.5, x, y + r * 0.58, x + r * 0.13, y + r * 0.5, x + r * 0.26, y + r * 0.58);
+      else { c.beginPath(); c.ellipse(x, y + r * 0.58, r * (mood === 'shock' ? 0.15 : 0.1), r * (mood === 'shock' ? 0.19 : 0.13), 0, 0, TAU); c.fillStyle = '#5A2320'; c.fill(); c.stroke(); }
+      if (mood !== 'shock') { sweat(x - r * 1.1, y - r * 0.3, r * 0.17); sweat(x + r * 1.15, y - r * 0.5, r * 0.14); }
+      break; }
+    case 'proud':
+      c.beginPath(); c.arc(L, ey + r * 0.08, r * 0.12, 1.1 * Math.PI, 1.9 * Math.PI); c.stroke();
+      c.beginPath(); c.arc(R, ey + r * 0.08, r * 0.12, 1.1 * Math.PI, 1.9 * Math.PI); c.stroke();
+      ln(L - r * 0.15, ey - r * 0.3, L + r * 0.13, ey - r * 0.34); ln(R - r * 0.13, ey - r * 0.42, R + r * 0.15, ey - r * 0.46);
+      nose();
+      c.beginPath(); c.moveTo(x - r * 0.32, y + r * 0.36); c.quadraticCurveTo(x, y + r * 0.84, x + r * 0.32, y + r * 0.36); c.closePath(); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke();
+      break;
+  }
+  c.restore();
+}
+
+function head(c, x, y, r, o = {}) {
+  const mood = o.mood || 'calm', ol = o.ol ?? 3;
+  const tint = { strain: '#F3A486', max: '#E58591', fail: '#CBD39A' };
+  const skin = o.sil || o.skin || tint[mood] || P.skin;
+  if (o.hair === 'pony' && !o.sil) blob(c, [{ k: 'ell', x: x + r * 0.98, y: y - r * 0.28, rx: r * 0.3, ry: r * 0.62, rot: -0.45, c: o.hairC || P.hair }], ol);
+  blob(c, [
+    { k: 'ell', x: x - r * 0.9, y: y + r * 0.08, rx: r * 0.2, ry: r * 0.27, c: skin },
+    { k: 'ell', x: x + r * 0.9, y: y + r * 0.08, rx: r * 0.2, ry: r * 0.27, c: skin },
+    { k: 'ell', x, y, rx: r * 0.9, ry: r, c: skin },
+  ], ol);
+  if (o.sil) return;
+  const hs = o.hair || 'buzz';
+  c.save(); c.beginPath(); c.ellipse(x, y, r * 0.9, r, 0, 0, TAU); c.clip();
+  if (hs === 'buzz' || hs === 'pony') { c.fillStyle = o.hairC || P.hair; c.beginPath(); c.ellipse(x, y - r * 0.95, r * 1.05, r * 0.55, 0, 0, TAU); c.fill(); }
+  if (hs === 'cap') { c.fillStyle = o.hairC || P.red; c.beginPath(); c.ellipse(x, y - r * 0.85, r * 1.1, r * 0.6, 0, 0, TAU); c.fill(); }
+  if (hs === 'kerchief') {
+    c.fillStyle = o.hairC || '#C8433A'; c.beginPath(); c.ellipse(x, y - r * 0.62, r * 1.2, r * 0.66, 0, 0, TAU); c.fill();
+    c.fillStyle = '#FFFFFF'; for (const [dx, dy] of [[-0.5, -0.7], [0, -0.85], [0.45, -0.62], [-0.2, -0.45], [0.25, -0.38]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * 0.06, 0, TAU); c.fill(); }
+  }
+  if (hs === 'bald') { c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(x - r * 0.35, y - r * 0.62, r * 0.2, r * 0.1, -0.5, 0, TAU); c.fill(); }
+  if (o.band) { c.fillStyle = P.band; c.fillRect(x - r, y - r * 0.56, r * 2, r * 0.25); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x - r, y - r * 0.53, r * 2, r * 0.05); }
+  c.restore();
+  if (hs === 'cap') blob(c, [{ k: 'ell', x, y: y - r * 0.4, rx: r * 0.95, ry: r * 0.17, c: shade(o.hairC || P.red, -0.15) }], Math.min(ol, 2.5));
+  if (o.band) blob(c, [{ k: 'line', p: [[x + r * 0.85, y - r * 0.44], [x + r * 1.32, y - r * 0.22]], w: r * 0.13, c: P.band }, { k: 'line', p: [[x + r * 0.85, y - r * 0.44], [x + r * 1.36, y - r * 0.5]], w: r * 0.13, c: P.band }], Math.min(ol, 2));
+  if (hs === 'kerchief') blob(c, [{ k: 'ell', x: x + r * 0.78, y: y - r * 0.56, rx: r * 0.16, ry: r * 0.12, c: o.hairC || '#C8433A' }, { k: 'line', p: [[x + r * 0.86, y - r * 0.5], [x + r * 1.1, y - r * 0.2]], w: r * 0.12, c: o.hairC || '#C8433A' }], 1.5);
+  face(c, x, y, r, mood);
+  if (o.mustache) blob(c, [{ k: 'ell', x: x - r * 0.17, y: y + r * 0.36, rx: r * 0.21, ry: r * 0.09, rot: 0.25, c: '#3A2A22' }, { k: 'ell', x: x + r * 0.17, y: y + r * 0.36, rx: r * 0.21, ry: r * 0.09, rot: -0.25, c: '#3A2A22' }], 1.2);
+}
+
+/* ---------- человек анфас ---------- */
+function arms(pose, sw) {
+  const mir = (A) => A.map(([x, y]) => [-x, y]);
+  const S = [sw - 3, -134], SL = [-(sw - 3), -134];
+  const down = [S, [sw + 5, -108], [sw + 3, -82]];
+  switch (pose) {
+    case 'hips': { const R = [S, [sw + 17, -110], [sw * 0.66, -88]]; return { R, L: mir(R) }; }
+    case 'cross': return { R: [S, [sw + 2, -106], [-sw * 0.45, -116]], L: [SL, [-sw - 2, -104], [sw * 0.45, -112]] };
+    case 'flex': { const R = [S, [sw + 28, -134], [sw + 22, -170]]; return { R, L: mir(R) }; }
+    case 'curl': return { R: [S, [sw + 7, -106], [sw - 1, -134]], L: mir(down) };
+    case 'phone': return { R: [S, [sw + 16, -112], [sw + 14, -150]], L: mir(down) };
+    case 'mop': return { R: [S, [sw + 12, -114], [sw + 22, -126]], L: [SL, [-sw + 6, -104], [sw + 18, -96]] };
+    default: return { R: down, L: mir(down) };
+  }
+}
+function person(c, x, y, s, o = {}) {
+  const sil = o.sil, OLW = sil ? 0 : (o.ol ?? 3);
+  const b = o.build ?? 1;
+  const sw = 17 + b * 6.5, aw = 9.5 + b * 3.4, lw = 13 + b * 2.4, hip = 9 + b * 2.4;
+  const SH = -136, HIP = -80;
+  const skin = sil || o.skin || P.skin, top = sil || o.top || P.tank, pants = sil || o.pants || P.pants, shoe = sil || o.shoe || P.white;
+  const type = o.type || 'tank';
+  c.save(); c.translate(x, y); c.scale(o.flip ? -s : s, s);
+  blob(c, [
+    { k: 'rr', x: -sw * 0.74, y: HIP - 4, w: sw * 1.48, h: 18, r: 6, c: pants },
+    { k: 'line', p: [[-hip, HIP + 6], [-hip - 1, -10]], w: lw, c: pants },
+    { k: 'line', p: [[hip, HIP + 6], [hip + 1, -10]], w: lw, c: pants },
+    { k: 'ell', x: -hip - 5, y: -6, rx: lw * 0.8, ry: 6.5, c: shoe },
+    { k: 'ell', x: hip + 5, y: -6, rx: lw * 0.8, ry: 6.5, c: shoe },
+  ], OLW);
+  if (o.stripes && !sil) { c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.2; c.lineCap = 'round'; for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(sg * (hip + lw * 0.32), HIP + 10); c.lineTo(sg * (hip + 1 + lw * 0.32), -16); c.stroke(); } c.restore(); }
+  const neck = { k: 'line', p: [[0, SH - 4], [0, SH - 16]], w: 12 + b * 2.5, c: skin };
+  const bodyParts = [neck];
+  if (type === 'robe') bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 1.12, -24], [-sw * 1.12, -24]], c: top });
+  else bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 0.76, HIP + 2], [-sw * 0.76, HIP + 2]], c: type === 'tank' ? skin : top });
+  if (o.belly && type !== 'tank') bodyParts.push({ k: 'ell', x: 0, y: -96, rx: sw * 0.9, ry: 21, c: top });
+  blob(c, bodyParts, OLW);
+  if (type === 'tank') {
+    const tp = [{ k: 'poly', p: [[-sw * 0.56, SH - 6], [-sw * 0.32, SH - 6], [-sw * 0.2, SH + 10], [sw * 0.2, SH + 10], [sw * 0.32, SH - 6], [sw * 0.56, SH - 6], [sw * 0.86, SH + 24], [sw * 0.77, HIP + 2], [-sw * 0.77, HIP + 2], [-sw * 0.86, SH + 24]], c: top }];
+    if (o.belly) tp.push({ k: 'ell', x: 0, y: -96, rx: sw * 0.9, ry: 21, c: top });
+    blob(c, tp, sil ? 0 : 2);
+  }
+  if (!sil) {
+    c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(27,28,34,.35)'; c.lineWidth = 2;
+    if (b >= 2 && type === 'tank') { c.beginPath(); c.arc(-sw * 0.33, SH + 16, sw * 0.32, 0.2 * Math.PI, 0.85 * Math.PI); c.stroke(); c.beginPath(); c.arc(sw * 0.33, SH + 16, sw * 0.32, 0.15 * Math.PI, 0.8 * Math.PI); c.stroke(); }
+    if (type === 'jacket') { c.strokeStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(0, SH); c.lineTo(0, HIP + 2); c.stroke(); }
+    if (type === 'robe') { c.fillStyle = '#FFFFFF'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(0, SH + 14 + i * 22, 2.4, 0, TAU); c.fill(); } c.strokeStyle = 'rgba(27,28,34,.4)'; rrPath(c, sw * 0.25, -78, sw * 0.5, 18, 3); c.stroke(); }
+    if (o.chain) { c.strokeStyle = '#E8BC3A'; c.lineWidth = 3; c.beginPath(); c.arc(0, SH - 8, 13, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke(); }
+    if (o.whistle) { c.strokeStyle = '#E8E8E8'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-7, SH - 6); c.lineTo(0, SH + 22); c.lineTo(7, SH - 6); c.stroke(); blob(c, [{ k: 'rr', x: -5, y: SH + 20, w: 12, h: 7, r: 3, c: '#C9CED4' }], 1.5); }
+    c.restore();
+  }
+  head(c, 0, -168, 22, { mood: o.mood, hair: o.hair, hairC: o.hairC, band: o.band, mustache: o.mustache, sil, skin: sil || o.skin, ol: OLW });
+  const A = arms(o.arms || 'down', sw);
+  if (o.arms === 'mop' && !sil) {
+    blob(c, [{ k: 'line', p: [[sw + 30, -178], [sw + 8, -4]], w: 5, c: '#B08350' }], 2);
+    blob(c, [{ k: 'poly', p: [[sw - 10, -10], [sw + 26, -10], [sw + 32, 2], [sw - 16, 2]], c: '#D8D3C4' }], 2);
+    c.save(); c.strokeStyle = 'rgba(27,28,34,.35)'; c.lineWidth = 1.5; for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(sw - 8 + i * 7, -8); c.lineTo(sw - 11 + i * 7.6, 1); c.stroke(); } c.restore();
+  }
+  const sleeve = type === 'tee' || type === 'jacket' || type === 'robe';
+  for (const arm of [A.L, A.R]) {
+    const parts = [{ k: 'line', p: arm, w: aw, c: skin }, { k: 'ell', x: arm[2][0], y: arm[2][1], rx: aw * 0.62, ry: aw * 0.62, c: skin }];
+    if (o.arms === 'flex' || b >= 2.5) { const m = lp(arm[0], arm[1], 0.55); parts.push({ k: 'ell', x: m[0], y: m[1] - aw * (o.arms === 'flex' ? 0.45 : 0.08), rx: aw * 0.74, ry: aw * 0.6, c: skin }); }
+    blob(c, parts, OLW);
+    if (sleeve && !sil) {
+      const sp = type === 'tee' ? [arm[0], lp(arm[0], arm[1], 0.55)] : [arm[0], arm[1], lp(arm[1], arm[2], 0.72)];
+      blob(c, [{ k: 'line', p: sp, w: aw + 3, c: top }], 2);
+      if (type === 'jacket') { c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.moveTo(sp[0][0] + 3, sp[0][1]); for (let i = 1; i < sp.length; i++) c.lineTo(sp[i][0] + 3, sp[i][1]); c.stroke(); c.restore(); }
+    }
+  }
+  if (!sil && o.arms === 'curl') { dumbbellSide(c, A.R[2][0], A.R[2][1], 0.62); dumbbellSide(c, A.L[2][0], A.L[2][1] + 3, 0.62); }
+  if (!sil && o.arms === 'phone') { const [hx, hy] = A.R[2]; blob(c, [{ k: 'rr', x: hx - 8, y: hy - 26, w: 16, h: 28, r: 3, c: '#24272E' }], 2); c.fillStyle = '#9FD0FF'; c.fillRect(hx - 5, hy - 23, 10, 20); c.fillStyle = P.red; c.beginPath(); c.arc(hx, hy - 17, 2.6, 0, TAU); c.fill(); }
+  c.restore();
+}
+function dumbbellSide(c, x, y, s = 1) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  blob(c, [{ k: 'line', p: [[-15, 0], [15, 0]], w: 6, c: P.steel }, { k: 'rr', x: -24, y: -12, w: 11, h: 24, r: 3, c: '#2A2E35' }, { k: 'rr', x: 13, y: -12, w: 11, h: 24, r: 3, c: '#2A2E35' }], 2.5);
+  c.restore();
+}
+
+/* ---------- зал ---------- */
+function gymWall(c, y1, seed = 3, bw = 64, bh = 30) {
+  const r = rng(seed);
+  c.fillStyle = P.mortar; c.fillRect(0, 0, W, y1);
+  for (let row = 0, y = 0; y < y1; row++, y += bh) {
+    const off = (row % 2) ? bw / 2 : 0;
+    for (let x = -off; x < W; x += bw) { const v = r(); c.fillStyle = v < 0.3 ? P.wallL : v < 0.78 ? P.wall : P.wallD; c.fillRect(x + 1.5, y + 1.5, bw - 3, bh - 3); }
+  }
+  const py = y1 - Math.round(bh * 3.3);
+  c.fillStyle = P.panel; c.fillRect(0, py, W, y1 - py);
+  c.fillStyle = 'rgba(255,255,255,.07)'; for (let i = 0; i < 22; i++) c.fillRect(r() * W, py + 6 + r() * (y1 - py - 10), 20 + r() * 70, 2);
+  c.fillStyle = 'rgba(160,170,150,.55)'; for (let i = 0; i < 5; i++) { const px = r() * W, pyy = py + 10 + r() * 40; c.beginPath(); c.ellipse(px, pyy, 8 + r() * 10, 5 + r() * 5, r(), 0, TAU); c.fill(); }
+  c.fillStyle = P.panelD; c.fillRect(0, py - 3, W, 4);
+}
+function gymFloor(c, y0, seed = 5) {
+  c.fillStyle = P.floor; c.fillRect(0, y0, W, H - y0);
+  c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 2; c.beginPath();
+  const mid = y0 + (H - y0) * 0.42; c.moveTo(0, mid); c.lineTo(W, mid);
+  for (let i = -2; i <= 10; i++) { const xt = i * 104; c.moveTo(xt, y0); c.lineTo((xt - W / 2) * 1.35 + W / 2, H); }
+  c.stroke();
+  const r = rng(seed), cols = ['#565C68', '#7A3F37', '#3E5A86', '#5E6B4F'];
+  c.globalAlpha = 0.6; for (let i = 0; i < 300; i++) { c.fillStyle = cols[i % 4]; c.fillRect(r() * W, y0 + r() * (H - y0), 2, 1.5); } c.globalAlpha = 1;
+  c.fillStyle = '#16181C'; c.fillRect(0, y0 - 5, W, 7);
+}
+function pipes(c, y) {
+  blob(c, [{ k: 'line', p: [[-10, y], [W + 10, y]], w: 12, c: '#8C6F55' }, { k: 'line', p: [[-10, y + 18], [W + 10, y + 18]], w: 8, c: '#6E7B86' }], 2);
+  for (let x = 60; x < W; x += 180) blob(c, [{ k: 'rr', x, y: y - 9, w: 8, h: 34, r: 2, c: '#4C535C' }], 1.5);
+}
+function bulb(c, x, y) {
+  c.strokeStyle = INK; c.lineWidth = 2; c.beginPath(); c.moveTo(x, 0); c.lineTo(x, y - 12); c.stroke();
+  const g = c.createRadialGradient(x, y, 2, x, y, 50); g.addColorStop(0, 'rgba(255,236,170,.8)'); g.addColorStop(1, 'rgba(255,236,170,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, 50, 0, TAU); c.fill();
+  blob(c, [{ k: 'rr', x: x - 5, y: y - 17, w: 10, h: 9, r: 2, c: '#44474D' }, { k: 'ell', x, y, rx: 8, ry: 10, c: '#FFF4C8' }], 2);
+}
+function cone(c, x, y, w, h, a = 0.16) {
+  const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(255,236,170,${a})`); g.addColorStop(1, 'rgba(255,236,170,0)');
+  c.fillStyle = g; c.beginPath(); c.moveTo(x - 8, y); c.lineTo(x + 8, y); c.lineTo(x + w / 2, y + h); c.lineTo(x - w / 2, y + h); c.closePath(); c.fill();
+}
+function vignette(c, a = 0.5, cx = W / 2, cy = H * 0.5, r0 = 170) {
+  const g = c.createRadialGradient(cx, cy, r0, cx, cy, 560); g.addColorStop(0, 'rgba(8,9,12,0)'); g.addColorStop(1, `rgba(8,9,12,${a})`);
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+}
+function cat(c, x, y, s) {
+  c.save(); c.translate(x, y); c.scale(s, s); c.fillStyle = '#1E1F24';
+  c.beginPath(); c.ellipse(0, -12, 10, 13, 0, 0, TAU); c.fill();
+  c.beginPath(); c.arc(2, -28, 7.5, 0, TAU); c.fill();
+  c.beginPath(); c.moveTo(-4, -32); c.lineTo(-2, -41); c.lineTo(3, -34); c.fill();
+  c.beginPath(); c.moveTo(3, -34); c.lineTo(8, -41); c.lineTo(9, -30); c.fill();
+  c.strokeStyle = '#1E1F24'; c.lineWidth = 3.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(-8, -3); c.quadraticCurveTo(-22, -4, -18, -20); c.stroke();
+  c.fillStyle = '#E8D24A'; c.beginPath(); c.arc(-0.5, -29, 1.4, 0, TAU); c.arc(5, -29, 1.4, 0, TAU); c.fill();
+  c.restore();
+}
+function basementWindow(c, x, y, w, h) {
+  blob(c, [{ k: 'rr', x: x - 5, y: y - 5, w: w + 10, h: h + 10, r: 3, c: '#4A5560' }], 2);
+  const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#C8E0F2'); g.addColorStop(1, '#95B8D3'); c.fillStyle = g; c.fillRect(x, y, w, h);
+  c.fillStyle = '#6F8F55'; c.fillRect(x, y + h * 0.7, w, h * 0.3);
+  c.fillStyle = '#4F6B3C'; for (let i = 0; i < w; i += 6) c.fillRect(x + i, y + h * 0.7 - 3, 2, 4);
+  c.strokeStyle = '#2B3036'; c.lineWidth = 3; c.beginPath(); for (let i = 1; i < 4; i++) { c.moveTo(x + w * i / 4, y); c.lineTo(x + w * i / 4, y + h); } c.stroke();
+  blob(c, [{ k: 'rr', x: x - 10, y: y + h + 3, w: w + 20, h: 6, r: 2, c: '#9AA3AC' }], 2);
+  cat(c, x + w * 0.74, y + h + 4, 0.9);
+}
+function poster(c, x, y, w, h, title, rot = -0.03) {
+  c.save(); c.translate(x + w / 2, y + h / 2); c.rotate(rot);
+  blob(c, [{ k: 'rr', x: -w / 2, y: -h / 2, w, h, r: 2, c: '#E9DFC6' }], 2);
+  c.fillStyle = '#B5372B'; c.fillRect(-w / 2 + 5, -h / 2 + 5, w - 10, 20);
+  text(c, title, 0, -h / 2 + 20, font(700, 13, FF.head), '#F4ECD8', 'center');
+  person(c, 0, h / 2 - 7, (h - 36) / 205, { sil: '#B5372B', arms: 'flex', build: 3 });
+  c.fillStyle = 'rgba(232,222,186,.85)'; c.fillRect(-w / 2 - 6, -h / 2 - 4, 18, 8); c.fillRect(w / 2 - 12, -h / 2 - 4, 18, 8);
+  c.restore();
+}
+function clock(c, x, y, r) {
+  blob(c, [{ k: 'ell', x, y, rx: r, ry: r, c: '#F4F2EC' }], 2.5);
+  c.strokeStyle = INK; c.lineCap = 'round';
+  for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x + Math.cos(a) * r * 0.76, y + Math.sin(a) * r * 0.76); c.lineTo(x + Math.cos(a) * r * 0.9, y + Math.sin(a) * r * 0.9); c.stroke(); }
+  c.lineWidth = 2.5; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - r * 0.65); c.moveTo(x, y); c.lineTo(x + r * 0.45, y + r * 0.22); c.stroke();
+}
+function polaroid(c, x, y, s, rot, mood = 'fail') {
+  c.save(); c.translate(x, y); c.rotate(rot);
+  blob(c, [{ k: 'rr', x: -s / 2, y: -s / 2, w: s, h: s * 1.2, r: 1, c: '#FAFAF5' }], 1.2);
+  c.fillStyle = '#9FB2C4'; c.fillRect(-s / 2 + s * 0.1, -s / 2 + s * 0.1, s * 0.8, s * 0.8);
+  c.save(); c.beginPath(); c.rect(-s / 2 + s * 0.1, -s / 2 + s * 0.1, s * 0.8, s * 0.8); c.clip();
+  head(c, 0, s * 0.02, s * 0.28, { mood, band: true, ol: Math.max(0.8, s * 0.04) }); c.restore();
+  c.fillStyle = P.red; c.beginPath(); c.arc(0, -s / 2 + 2, Math.max(2, s * 0.07), 0, TAU); c.fill();
+  c.restore();
+}
+function shameBoard(c, x, y, w, h) {
+  blob(c, [{ k: 'rr', x, y, w, h, r: 3, c: P.cork }], 2.5);
+  c.font = font(700, 11, FF.head); const w1 = c.measureText('ДОСКА ').width, w2 = c.measureText('ПОЧЁТА').width;
+  const tx = x + w / 2 - (w1 + w2) / 2;
+  text(c, 'ДОСКА ПОЧЁТА', tx, y + 16, font(700, 11, FF.head), INK, 'left');
+  c.strokeStyle = P.red; c.lineWidth = 2; c.beginPath(); c.moveTo(tx + w1 - 1, y + 12); c.lineTo(tx + w1 + w2 + 1, y + 11); c.stroke();
+  c.save(); c.translate(tx + w1 + w2 / 2 + 8, y - 7); c.rotate(-0.1); textOl(c, 'позора', 0, 0, font(700, 19, FF.hand), P.red, 4, 'center', 'middle', '#F4F2EC'); c.restore();
+  polaroid(c, x + w * 0.22, y + 40, 22, -0.12); polaroid(c, x + w * 0.52, y + 46, 22, 0.08); polaroid(c, x + w * 0.8, y + 39, 22, -0.05, 'panic');
+}
+function mirror(c, x, y, w, h) {
+  blob(c, [{ k: 'rr', x: x - 6, y: y - 6, w: w + 12, h: h + 12, r: 6, c: '#9AA3AD' }], 2.5);
+  const g = c.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, '#C6D4DE'); g.addColorStop(1, '#8EA2B2'); c.fillStyle = g; c.fillRect(x, y, w, h);
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.fillStyle = 'rgba(255,255,255,.3)';
+  for (const [dx, ww] of [[0.12, 30], [0.3, 12], [0.62, 44]]) { c.beginPath(); c.moveTo(x + w * dx, y + h); c.lineTo(x + w * dx + ww, y + h); c.lineTo(x + w * dx + ww + h * 0.55, y); c.lineTo(x + w * dx + h * 0.55, y); c.closePath(); c.fill(); }
+  c.restore();
+}
+function door(c, x, y, w, h) {
+  blob(c, [{ k: 'rr', x, y, w, h, r: 2, c: '#5E7468' }], 2.5);
+  c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 2; rrPath(c, x + 8, y + 10, w - 16, h * 0.4, 2); c.stroke(); rrPath(c, x + 8, y + h * 0.5, w - 16, h * 0.42, 2); c.stroke();
+  blob(c, [{ k: 'rr', x: x + w - 16, y: y + h * 0.5 - 4, w: 10, h: 6, r: 2, c: P.steel }], 1.5);
+  c.save(); c.translate(x + w / 2, y + 34); c.rotate(0.04); box(c, -28, -12, 56, 22, 2, '#F4F0E2', INK, 1.5); text(c, 'НЕ ХЛОПАТЬ!', 0, 3, font(700, 9, FF.head), P.red, 'center'); c.restore();
+}
+function plateEll(c, x, y, rx, ry, rot, col, dim) {
+  const cc = dim ? shade(col, -0.3) : col, side = shade(col, dim ? -0.5 : -0.35);
+  const dx = Math.cos(rot) * -5, dy = Math.sin(rot) * -5;
+  blob(c, [{ k: 'ell', x: x + dx, y: y + dy, rx, ry, rot, c: side }, { k: 'ell', x, y, rx, ry, rot, c: cc }], 2.5);
+  c.save(); c.translate(x, y); c.rotate(rot);
+  c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, 0, rx * 0.72, ry * 0.76, 0, 0, TAU); c.stroke();
+  c.fillStyle = '#2A2E35'; c.beginPath(); c.ellipse(0, 0, rx * 0.2, ry * 0.12, 0, 0, TAU); c.fill();
+  c.fillStyle = 'rgba(255,255,255,.22)'; c.beginPath(); c.ellipse(-rx * 0.35, -ry * 0.45, rx * 0.16, ry * 0.18, 0, 0, TAU); c.fill();
+  c.restore();
+}
+function barbellFront(c, x, y, s, plates) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  blob(c, [{ k: 'line', p: [[-122, 0], [122, 0]], w: 5, c: P.steel }], 2);
+  const size = (col) => col === P.red ? 70 : col === P.blue ? 64 : col === P.yellow ? 56 : col === P.green ? 48 : 34;
+  for (const sg of [-1, 1]) {
+    let px = 72;
+    for (const col of plates) { const ph = size(col); blob(c, [{ k: 'rr', x: sg > 0 ? px : -px - 11, y: -ph / 2, w: 11, h: ph, r: 3, c: col }], 2); px += 12; }
+    blob(c, [{ k: 'rr', x: sg > 0 ? px : -px - 6, y: -7, w: 6, h: 14, r: 2, c: P.steelD }], 1.5);
+  }
+  c.restore();
+}
+function squatRack(c, x, yb, s = 1) {
+  c.save(); c.translate(x, yb); c.scale(s, s);
+  const post = (px) => ({ k: 'rr', x: px - 5, y: -205, w: 10, h: 205, r: 2, c: P.iron });
+  blob(c, [post(-58), post(58), { k: 'rr', x: -64, y: -212, w: 128, h: 10, r: 2, c: P.iron }, { k: 'rr', x: -78, y: -7, w: 156, h: 8, r: 2, c: P.ironD }], 2.5);
+  c.fillStyle = '#1E2227'; for (let yy = -192; yy < -20; yy += 14) { c.fillRect(-60, yy, 4, 4); c.fillRect(56, yy, 4, 4); }
+  barbellFront(c, 0, -136, 1, [P.red, P.blue]);
+  c.restore();
+}
+function hexEnd(c, x, y, r) {
+  const pts = []; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + Math.PI / 6; pts.push([x + Math.cos(a) * r, y + Math.sin(a) * r]); }
+  blob(c, [{ k: 'poly', p: pts, c: '#2A2E35' }], 1.8);
+  c.fillStyle = P.steel; c.beginPath(); c.arc(x, y, r * 0.3, 0, TAU); c.fill();
+}
+function dbRack(c, x, yb, w) {
+  blob(c, [{ k: 'line', p: [[x + 8, yb], [x + 20, yb - 96]], w: 6, c: P.iron }, { k: 'line', p: [[x + w - 8, yb], [x + w - 20, yb - 96]], w: 6, c: P.iron },
+    { k: 'line', p: [[x + 10, yb - 40], [x + w - 10, yb - 40]], w: 6, c: P.iron }, { k: 'line', p: [[x + 17, yb - 86], [x + w - 17, yb - 86]], w: 6, c: P.iron }], 2);
+  let px = x + 22; for (let i = 0; i < 6 && px < x + w - 20; i++) { const r = 8 + i * 1.2; hexEnd(c, px + r, yb - 44 - r, r); px += r * 2 + 4; }
+  px = x + 28; for (let i = 0; i < 6 && px < x + w - 26; i++) { const r = 6.5 + i * 0.8; hexEnd(c, px + r, yb - 90 - r, r); px += r * 2 + 4; }
+}
+function kettlebell(c, x, yb, s, label) {
+  c.save(); c.translate(x, yb); c.scale(s, s);
+  blob(c, [{ k: 'arc', x: 0, y: -31, r: 10, a0: Math.PI, a1: TAU, w: 5, c: '#2A2E35' }, { k: 'line', p: [[-10, -31], [-10, -24]], w: 5, c: '#2A2E35' }, { k: 'line', p: [[10, -31], [10, -24]], w: 5, c: '#2A2E35' },
+    { k: 'ell', x: 0, y: -15, rx: 17, ry: 15, c: '#2A2E35' }, { k: 'rr', x: -12, y: -4, w: 24, h: 4, r: 2, c: '#2A2E35' }], 2);
+  text(c, label, 0, -10, font(700, 11, FF.head), '#D6D9DE', 'center');
+  c.restore();
+}
+function plateTree(c, x, yb) {
+  blob(c, [{ k: 'rr', x: x - 4, y: yb - 128, w: 8, h: 128, r: 2, c: P.iron }, { k: 'rr', x: x - 32, y: yb - 7, w: 64, h: 8, r: 2, c: P.ironD }], 2);
+  for (const [py, list] of [[yb - 38, [[32, P.red], [28, P.blue], [21, P.green]]], [yb - 96, [[28, P.blue], [24, P.yellow], [15, P.white]]]]) {
+    for (const [r, col] of list) blob(c, [{ k: 'ell', x, y: py, rx: r, ry: r, c: col }], 2);
+    c.fillStyle = '#2A2E35'; c.beginPath(); c.arc(x, py, 5, 0, TAU); c.fill();
+  }
+}
+/* Скамья со штангой в три четверти: штанга смотрит на нас, блины — эллипсы. */
+function benchScene(c, ox, oy, s, o = {}) {
+  const t = o.t ?? 0.5, mood = o.mood || 'focus', who = o.who !== false, plate = o.plate || P.blue;
+  c.save(); c.translate(ox, oy); c.scale(s, s);
+  const v = [-18, -11];
+  const S = [-72, -122];
+  const Hn = who ? [-64, lerp(-142, -214, t)] : [-58, -226];
+  const farS = [S[0] + v[0], S[1] + v[1]], farH = [Hn[0] + v[0], Hn[1] + v[1]];
+  blob(c, [{ k: 'rr', x: -50 + v[0], y: -246 + v[1], w: 10, h: 166, r: 2, c: P.iron },
+    { k: 'line', p: [[-45 + v[0], -228 + v[1]], [-34 + v[0], -228 + v[1]], [-34 + v[0], -238 + v[1]]], w: 4, c: P.iron }], 2.5);
+  const farP = [Hn[0] + v[0] * 2.9, Hn[1] + v[1] * 2.9], nearP = [Hn[0] - v[0] * 2.7, Hn[1] - v[1] * 2.7];
+  const barA = [Hn[0] + v[0] * 3.7, Hn[1] + v[1] * 3.7], barB = [Hn[0] - v[0] * 3.4, Hn[1] - v[1] * 3.4];
+  const rot = Math.atan2(-v[1], -v[0]);
+  blob(c, [{ k: 'line', p: [barA, farP], w: 7, c: P.steelD }], 2.5);
+  plateEll(c, farP[0], farP[1], 24, 46, rot, plate, true);
+  if (who) { const fe = ik(farS, farH, 50, 50, 1); blob(c, [{ k: 'line', p: [farS, fe, farH], w: 15, c: P.skinD }, { k: 'ell', x: farH[0], y: farH[1], rx: 9, ry: 9, c: P.skinD }]); }
+  blob(c, [{ k: 'rr', x: -132, y: -84, w: 10, h: 82, r: 2, c: P.iron }, { k: 'rr', x: 82, y: -84, w: 10, h: 82, r: 2, c: P.iron },
+    { k: 'rr', x: -162, y: -8, w: 68, h: 8, r: 3, c: P.ironD }, { k: 'rr', x: 54, y: -8, w: 68, h: 8, r: 3, c: P.ironD },
+    { k: 'rr', x: -154, y: -97, w: 270, h: 15, r: 6, c: P.pad }], 2.5);
+  c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-146, -94, 256, 3);
+  if (who) {
+    blob(c, [{ k: 'ell', x: 4, y: -108, rx: 18, ry: 14, c: P.pants }, { k: 'line', p: [[4, -110], [76, -124], [90, -18]], w: 24, c: P.pants }, { k: 'ell', x: 101, y: -9, rx: 19, ry: 8, c: P.white }]);
+    c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); c.moveTo(14, -121); c.lineTo(80, -135); c.lineTo(100, -26); c.stroke(); c.restore();
+    blob(c, [{ k: 'poly', p: [[-100, -97], [-98, -126], [-74, -138], [-34, -137], [6, -127], [14, -99]], c: P.tank }, { k: 'line', p: [[-100, -116], [-112, -120]], w: 16, c: P.skin }, { k: 'ell', x: S[0], y: S[1] + 1, rx: 15, ry: 13, c: P.skin }]);
+    c.save(); c.strokeStyle = 'rgba(27,28,34,.3)'; c.lineWidth = 2; c.beginPath(); c.arc(-52, -128, 16, 0.1 * Math.PI, 0.9 * Math.PI); c.stroke(); c.restore();
+    head(c, -128, -121, 26, { mood, band: true });
+  }
+  blob(c, [{ k: 'line', p: [farP, nearP], w: 7, c: P.steel }], 2.5);
+  if (who) { const ne = ik(S, Hn, 50, 50, 1); blob(c, [{ k: 'line', p: [S, ne, Hn], w: 16, c: P.skin }, { k: 'ell', x: Hn[0], y: Hn[1], rx: 10, ry: 10, c: P.skin }]); }
+  plateEll(c, nearP[0], nearP[1], 29, 55, rot, plate);
+  blob(c, [{ k: 'line', p: [nearP, barB], w: 8, c: P.steel }, { k: 'rr', x: barB[0] - 5, y: barB[1] - 6, w: 10, h: 12, r: 3, c: P.steelD }], 2.5);
+  c.restore();
+  return { hand: [ox + Hn[0] * s, oy + Hn[1] * s], plate: [ox + nearP[0] * s, oy + nearP[1] * s], hip: [ox + 4 * s, oy - 108 * s], headP: [ox - 128 * s, oy - 121 * s] };
+}
+
+/* ---------- интерфейс ---------- */
+function btn(c, x, y, w, h, label, kind = 'primary', fs = 18) {
+  if (kind === 'primary') { box(c, x, y + 4, w, h, h / 2, '#9C7410'); box(c, x, y, w, h, h / 2, P.yellow, INK, 2.5); text(c, label, x + w / 2, y + h / 2 + 1, font(700, fs, FF.head), INK, 'center', 'middle'); }
+  else { box(c, x, y, w, h, h / 2, 'rgba(23,25,30,.88)', 'rgba(244,242,236,.35)', 1.5); text(c, label, x + w / 2, y + h / 2 + 1, font(600, fs, FF.head), P.text, 'center', 'middle'); }
+}
+function iconBtn(c, x, y, kind) {
+  box(c, x, y, 40, 40, 12, 'rgba(23,25,30,.85)', 'rgba(244,242,236,.25)', 1.5);
+  c.fillStyle = P.text; c.strokeStyle = P.text; c.lineWidth = 3; c.lineCap = 'round';
+  if (kind === 'pause') { c.fillRect(x + 13, y + 11, 5, 18); c.fillRect(x + 22, y + 11, 5, 18); }
+  if (kind === 'menu') { for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(x + 12, y + 13 + i * 7); c.lineTo(x + 28, y + 13 + i * 7); c.stroke(); } }
+  if (kind === 'back') { c.beginPath(); c.moveTo(x + 23, y + 11); c.lineTo(x + 14, y + 20); c.lineTo(x + 23, y + 29); c.stroke(); }
+}
+function canIcon(c, x, y, s = 1) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  blob(c, [{ k: 'rr', x: -9, y: -12, w: 18, h: 25, r: 4, c: '#F4F2EC' }, { k: 'rr', x: -10.5, y: -16, w: 21, h: 7, r: 2, c: P.red }], 2);
+  c.fillStyle = P.blue; c.fillRect(-9, -3, 18, 8); c.restore();
+}
+function cans(c, x, y, n) { canIcon(c, x, y, 0.9); textOl(c, String(n), x + 14, y + 7, font(700, 20, FF.head), P.text, 5, 'left'); }
+function lockIcon(c, x, y, s = 1, col = P.dim) {
+  c.save(); c.translate(x, y); c.scale(s, s); c.strokeStyle = col; c.lineWidth = 2.6; c.beginPath(); c.moveTo(-5, 0); c.lineTo(-5, -4); c.arc(0, -4, 5, Math.PI, 0); c.lineTo(5, 0); c.stroke();
+  c.fillStyle = col; rrPath(c, -7.5, -1, 15, 11, 2); c.fill(); c.restore();
+}
+function pooIcon(c, x, y, s = 1, shake = false) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  blob(c, [{ k: 'ell', x: 0, y: 8, rx: 16, ry: 7, c: P.poo }, { k: 'ell', x: 0, y: 1, rx: 12, ry: 6, c: P.poo }, { k: 'ell', x: 0, y: -5, rx: 8, ry: 5, c: P.poo }, { k: 'poly', p: [[-3, -8], [5, -15], [3, -7]], c: P.poo }], 2);
+  c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1.6; c.beginPath(); c.ellipse(0, 4.5, 12, 3, 0, 0.1, Math.PI - 0.1); c.stroke(); c.beginPath(); c.ellipse(0, -1.5, 8, 2.5, 0, 0.1, Math.PI - 0.1); c.stroke();
+  c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.ellipse(-6, 6, 4, 1.8, 0, 0, TAU); c.fill();
+  if (shake) { c.strokeStyle = P.text; c.lineWidth = 2.2; c.lineCap = 'round'; for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(sg * 21, -8); c.lineTo(sg * 26, -12); c.moveTo(sg * 22, 2); c.lineTo(sg * 28, 2); c.moveTo(sg * 21, 11); c.lineTo(sg * 26, 15); c.stroke(); } }
+  c.restore();
+}
+function fatigue(c, x, y, w, h, lvl, o = {}) {
+  if (o.glow) { const g = c.createRadialGradient(x + w / 2, y + 30, 4, x + w / 2, y + 30, 70); g.addColorStop(0, 'rgba(255,70,50,.55)'); g.addColorStop(1, 'rgba(255,70,50,0)'); c.fillStyle = g; c.fillRect(x - 70, y - 50, w + 140, 160); }
+  box(c, x - 5, y - 5, w + 10, h + 10, (w + 10) / 2, 'rgba(14,15,19,.85)');
+  c.save(); rrPath(c, x, y, w, h, w / 2); c.clip();
+  for (const [a, b, col] of [[0, 0.6, P.green], [0.6, 0.85, P.yellow], [0.85, 1, P.red]]) {
+    c.globalAlpha = 0.22; c.fillStyle = col; c.fillRect(x, y + h * (1 - b), w, h * (b - a)); c.globalAlpha = 1;
+    const tp = Math.min(b, lvl); if (tp > a) { c.fillStyle = col; c.fillRect(x, y + h * (1 - tp), w, h * (tp - a)); }
+  }
+  c.fillStyle = 'rgba(255,255,255,.2)'; c.fillRect(x + 4, y, 4, h);
+  c.restore();
+  c.strokeStyle = 'rgba(14,15,19,.95)'; c.lineWidth = 2; for (const z of [0.6, 0.85]) { c.beginPath(); c.moveTo(x, y + h * (1 - z)); c.lineTo(x + w, y + h * (1 - z)); c.stroke(); }
+  const my = y + h * (1 - Math.min(lvl, 1));
+  c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(x - 7, my); c.lineTo(x - 18, my - 8); c.lineTo(x - 18, my + 8); c.closePath(); c.fill(); c.strokeStyle = INK; c.lineWidth = 2; c.stroke();
+  if (o.mult) { const col = lvl >= 0.85 ? P.red : lvl >= 0.6 ? P.yellow : P.green; box(c, x - 70, my - 13, 48, 26, 13, col, INK, 2); text(c, o.mult, x - 46, my + 1, font(700, 16, FF.head), INK, 'center', 'middle'); }
+  pooIcon(c, x + w / 2, y - 26, 0.95, o.shake);
+}
+function bubble(c, tipX, tipY, lines, o = {}) {
+  const fnt = o.font || font(500, 13, FF.body); c.font = fnt;
+  const arr = Array.isArray(lines) ? lines : [lines], lh = o.lh || 17;
+  const pw = Math.max(...arr.map((l) => c.measureText(l).width)) + 22, ph = arr.length * lh + 12;
+  const side = o.side || 'left';
+  const bx = side === 'left' ? tipX - pw + 22 : tipX - 22, by = tipY - ph - 13;
+  const tx = side === 'left' ? bx + pw - 38 : bx + 22;
+  c.save(); c.lineJoin = 'round'; c.lineWidth = 2.5; c.strokeStyle = INK;
+  rrPath(c, bx, by, pw, ph, 11); c.stroke();
+  c.beginPath(); c.moveTo(tx, by + ph - 2); c.lineTo(tipX, tipY); c.lineTo(tx + 15, by + ph - 2); c.stroke();
+  c.fillStyle = o.bg || '#FFFFFF'; rrPath(c, bx, by, pw, ph, 11); c.fill();
+  c.beginPath(); c.moveTo(tx, by + ph - 2); c.lineTo(tipX, tipY); c.lineTo(tx + 15, by + ph - 2); c.closePath(); c.fill();
+  arr.forEach((l, i) => text(c, l, bx + 11, by + 6 + lh * (i + 0.78), fnt, o.col || INK));
+  c.restore();
+}
+function picto(c, kind, cx, cy, col = '#FFFFFF') {
+  c.save(); c.translate(cx, cy); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 3.2; c.lineCap = 'round'; c.lineJoin = 'round';
+  const L = (...a) => { c.beginPath(); c.moveTo(a[0], a[1]); for (let i = 2; i < a.length; i += 2) c.lineTo(a[i], a[i + 1]); c.stroke(); };
+  const D = (x, y, r) => { c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
+  const pl = (x, y, h = 12) => c.fillRect(x - 2.5, y - h / 2, 5, h);
+  switch (kind) {
+    case 'bench': L(-15, 12, 14, 12); D(-12, 4, 3.6); L(-6, 6, 8, 6, 11, 12); L(-3, 5, -3, -8); L(-14, -10, 8, -10); pl(-14, -10); pl(8, -10); break;
+    case 'squat': D(2, -13, 3.6); L(-14, -7, 16, -7); pl(-14, -7); pl(16, -7); L(1, -7, -2, 3, 8, 5, 6, 15); break;
+    case 'curl': L(-9, 0, 9, 0); c.fillRect(-16, -8, 7, 16); c.fillRect(9, -8, 7, 16); break;
+    case 'pull': L(-15, -14, 15, -14); D(0, -2, 3.6); L(-7, -14, -3, -4); L(7, -14, 3, -4); L(0, 2, 0, 10, -3, 16); L(0, 10, 3, 16); break;
+    case 'dead': D(-7, -10, 3.6); L(-3, -6, 8, 0, 6, 9, 8, 16); L(-1, -4, -2, 9); L(-14, 11, 12, 11); pl(-14, 11, 13); pl(12, 11, 13); break;
+  }
+  c.restore();
+}
+function stepper(c, x, y, w, label) {
+  box(c, x, y, w, 28, 14, P.ui3);
+  text(c, '‹', x + 11, y + 20, font(700, 18, FF.head), P.dim, 'center'); text(c, '›', x + w - 11, y + 20, font(700, 18, FF.head), P.dim, 'center');
+  text(c, label, x + w / 2, y + 19, font(600, 14, FF.head), P.text, 'center');
+}
+function hudShade(c, h = 64) { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(10,11,14,.6)'); g.addColorStop(1, 'rgba(10,11,14,0)'); c.fillStyle = g; c.fillRect(0, 0, W, h); }
+function sparkle(c, x, y, r, col = '#FFF6C8') {
+  c.save(); c.fillStyle = col; c.beginPath(); c.moveTo(x, y - r); c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r); c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r); c.fill(); c.restore();
+}
+
+/* ---------- экраны ---------- */
+function drawHub(c) {
+  gymWall(c, 300, 3); gymFloor(c, 300, 5); pipes(c, 52);
+  door(c, 16, 150, 74, 150);
+  shameBoard(c, 104, 92, 104, 72);
+  poster(c, 300, 92, 70, 92, 'ЖЕЛЕЗО');
+  basementWindow(c, 566, 80, 86, 40);
+  clock(c, 506, 116, 15);
+  mirror(c, 590, 148, 150, 112);
+  bulb(c, 470, 84); cone(c, 470, 84, 520, 300, 0.14);
+  squatRack(c, 248, 326, 0.78);
+  kettlebell(c, 218, 342, 0.9, '16'); kettlebell(c, 254, 346, 1.05, '24');
+  plateTree(c, 790, 330);
+  dbRack(c, 586, 330, 136);
+  const g = c.createRadialGradient(410, 336, 10, 410, 336, 130); g.addColorStop(0, 'rgba(244,193,46,.45)'); g.addColorStop(1, 'rgba(244,193,46,0)');
+  c.fillStyle = g; c.beginPath(); c.ellipse(410, 336, 140, 26, 0, 0, TAU); c.fill();
+  benchScene(c, 410, 336, 0.6, { who: false });
+  person(c, 120, 374, 0.78, { build: 1.6, type: 'jacket', top: '#2E56A8', pants: '#2E56A8', stripes: true, hair: 'cap', hairC: '#C8433A', mustache: true, arms: 'hips', mood: 'focus', whistle: true, belly: true });
+  person(c, 520, 376, 0.8, { build: 0.4, stripes: true, band: true, mood: 'calm', arms: 'down' });
+  person(c, 654, 382, 0.84, { build: 3, top: '#23262C', pants: '#3B3F47', hair: 'bald', arms: 'curl', mood: 'smug', chain: true });
+  bubble(c, 664, 214, ['Братиш, скамья', 'свободна. Жми!'], { side: 'right' });
+  vignette(c, 0.45, 430, 230);
+  // метка следующего упражнения
+  c.save(); c.translate(404, 126);
+  box(c, -66, -18, 132, 36, 18, P.yellow, INK, 2.5);
+  blob(c, [{ k: 'ell', x: -46, y: 0, rx: 12, ry: 12, c: INK }], 0); text(c, '1', -46, 1, font(700, 15, FF.head), P.yellow, 'center', 'middle');
+  text(c, 'ЖИМ ЛЁЖА', 10, 1, font(700, 16, FF.head), INK, 'center', 'middle');
+  c.fillStyle = P.yellow; c.strokeStyle = INK; c.lineWidth = 2.5; c.beginPath(); c.moveTo(-10, 17); c.lineTo(0, 30); c.lineTo(10, 17); c.closePath(); c.fill(); c.stroke();
+  c.fillRect(-11, 14, 22, 3);
+  c.restore();
+  hudShade(c, 70);
+  iconBtn(c, 12, 10, 'menu');
+  textOl(c, 'ПОДВАЛ «ЖЕЛЕЗЯКА»', 64, 32, font(700, 20, FF.head), P.text, 5, 'left');
+  box(c, 296, 12, 252, 34, 17, 'rgba(23,25,30,.85)');
+  text(c, 'ТРЕНИРОВКА НОВИЧКА', 314, 34, font(600, 14, FF.head), P.text, 'left');
+  for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(484 + i * 20, 29, 6, 0, TAU); c.fillStyle = i === 0 ? P.yellow : 'rgba(244,242,236,.25)'; c.fill(); }
+  cans(c, 762, 30, 120);
+  box(c, 12, 334, 160, 44, 22, 'rgba(23,25,30,.88)', 'rgba(244,242,236,.35)', 1.5);
+  c.save(); c.translate(38, 356); blob(c, [{ k: 'rr', x: -9, y: -12, w: 18, h: 24, r: 2, c: '#E9DFC6' }, { k: 'rr', x: -5, y: -15, w: 10, h: 6, r: 2, c: P.steel }], 1.5);
+  c.strokeStyle = INK; c.lineWidth = 1.5; for (let i = 0; i < 3; i++) { c.beginPath(); c.moveTo(-5, -4 + i * 5); c.lineTo(5, -4 + i * 5); c.stroke(); } c.restore();
+  text(c, 'ПРОГРАММА', 58, 362, font(600, 17, FF.head), P.text, 'left');
+  btn(c, 676, 328, 156, 48, 'НАЧАТЬ  ▸', 'primary', 20);
+}
+
+function drawSetScene(c, o) {
+  gymWall(c, 252, 9, 80, 36); gymFloor(c, 252, 7);
+  mirror(c, 500, 70, 236, 104);
+  poster(c, 30, 30, 84, 108, 'ДЫШИ', 0.04);
+  c.fillStyle = 'rgba(10,11,14,.35)'; c.fillRect(0, 0, W, H);
+  person(c, 104, 388, 1.02, { build: 3, top: '#23262C', pants: '#3B3F47', hair: 'bald', arms: o.spotHot ? 'down' : 'cross', mood: o.spotHot ? 'shock' : 'smug', chain: true });
+  const g = c.createRadialGradient(330, 300, 30, 330, 300, 300); g.addColorStop(0, 'rgba(255,236,170,.16)'); g.addColorStop(1, 'rgba(255,236,170,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  return benchScene(c, 330, 352, 1.12, { t: o.t, mood: o.mood });
+}
+function barTrack(c, x, top, bot, t, stuck) {
+  box(c, x - 4, top - 4, 8, bot - top + 8, 4, 'rgba(14,15,19,.75)');
+  c.save(); c.beginPath(); c.rect(x - 4, lerp(bot, top, 0.6), 8, (bot - top) * 0.2); c.clip();
+  for (let i = -20; i < 80; i += 6) { c.fillStyle = (i / 6) % 2 ? P.yellow : INK; c.beginPath(); c.moveTo(x - 6, lerp(bot, top, 0.6) + i); c.lineTo(x + 6, lerp(bot, top, 0.6) + i - 6); c.lineTo(x + 6, lerp(bot, top, 0.6) + i - 3); c.lineTo(x - 6, lerp(bot, top, 0.6) + i + 3); c.fill(); }
+  c.restore();
+  lockIcon(c, x, top - 14, 0.9, P.text);
+  const y = lerp(bot, top, t);
+  blob(c, [{ k: 'ell', x, y, rx: 8, ry: 8, c: stuck ? P.red : P.text }], 2);
+}
+function drawSet(c) {
+  const sc = drawSetScene(c, { t: 0.62, mood: 'strain' });
+  vignette(c, 0.55, 360, 220);
+  barTrack(c, 410, 114, 194, 0.62);
+  c.save(); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 3; c.lineCap = 'round';
+  for (const dx of [-14, 0, 14]) { c.beginPath(); c.moveTo(sc.plate[0] + 52 + dx, sc.plate[1] + 10 + Math.abs(dx) * 0.5); c.lineTo(sc.plate[0] + 52 + dx, sc.plate[1] - 12 + Math.abs(dx) * 0.5); c.stroke(); }
+  c.restore();
+  iconBtn(c, 12, 10, 'pause');
+  text(c, 'ЖИМ ЛЁЖА · 60 КГ', 422, 26, font(600, 14, FF.head), P.dim, 'center');
+  textOl(c, '4', 418, 76, font(700, 52, FF.head), '#FFFFFF', 7, 'right');
+  textOl(c, '/8', 422, 76, font(700, 28, FF.head), P.dim, 6, 'left');
+  text(c, 'ПОДХОД', 640, 32, font(600, 13, FF.head), P.dim, 'right');
+  for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(658 + i * 20, 27, 6.5, 0, TAU); c.fillStyle = i === 0 ? P.yellow : i === 1 ? '#FFFFFF' : 'rgba(244,242,236,.22)'; c.fill(); if (i === 1) { c.strokeStyle = P.yellow; c.lineWidth = 2.5; c.stroke(); } }
+  fatigue(c, 800, 74, 26, 270, 0.72, { mult: '×1.5' });
+  // подсказка «держи»
+  const hx = 676, hy = 284;
+  c.save(); c.fillStyle = 'rgba(255,255,255,.1)'; c.beginPath(); c.arc(hx, hy, 56, 0, TAU); c.fill();
+  c.setLineDash([7, 7]); c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 2.5; c.beginPath(); c.arc(hx, hy, 56, 0, TAU); c.stroke(); c.setLineDash([]);
+  c.fillStyle = 'rgba(255,255,255,.85)'; c.beginPath(); c.ellipse(hx, hy + 6, 17, 21, 0, 0, TAU); c.fill();
+  c.strokeStyle = 'rgba(27,28,34,.35)'; c.lineWidth = 1.5; for (let i = 0; i < 4; i++) { c.beginPath(); c.ellipse(hx, hy + 8, 5 + i * 3.4, 7 + i * 4, 0, Math.PI * 1.1, Math.PI * 1.9); c.stroke(); }
+  c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(hx, hy - 96); c.lineTo(hx - 16, hy - 74); c.lineTo(hx - 6, hy - 74); c.lineTo(hx - 6, hy - 62); c.lineTo(hx + 6, hy - 62); c.lineTo(hx + 6, hy - 74); c.lineTo(hx + 16, hy - 74); c.closePath(); c.fill();
+  c.restore();
+  textOl(c, 'ДЕРЖИ', hx, hy + 84, font(700, 18, FF.head), '#FFFFFF', 5, 'center');
+  spotBtn(c, 44, 344, 1, false);
+}
+function spotBtn(c, x, y, n, hot) {
+  if (hot) { c.save(); c.strokeStyle = 'rgba(244,193,46,.55)'; c.lineWidth = 3; for (const r of [36, 46]) { c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke(); } c.restore(); }
+  blob(c, [{ k: 'ell', x, y, rx: 27, ry: 27, c: hot ? P.yellow : 'rgba(30,33,40,.95)' }], 2.5);
+  const col = hot ? INK : P.text;
+  c.save(); c.translate(x, y + 2); c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round'; c.lineWidth = 3.4;
+  rrPath(c, -8, -3, 16, 13, 4); c.fill();
+  for (const fx of [-6, -2, 2, 6]) { c.beginPath(); c.moveTo(fx, -2); c.lineTo(fx, -11 + Math.abs(fx) * 0.5); c.stroke(); }
+  c.beginPath(); c.moveTo(-8, 3); c.lineTo(-13, -3); c.stroke();
+  c.restore();
+  blob(c, [{ k: 'ell', x: x + 20, y: y - 20, rx: 10, ry: 10, c: P.red }], 2); text(c, String(n), x + 20, y - 19, font(700, 13, FF.head), '#FFFFFF', 'center', 'middle');
+  if (hot) textOl(c, 'СТРАХОВКА', x + 36, y + 6, font(700, 15, FF.head), P.yellow, 5, 'left');
+}
+function drawPush(c) {
+  const sc = drawSetScene(c, { t: 0.42, mood: 'max', spotHot: true });
+  const g = c.createRadialGradient(360, 210, 120, 360, 210, 520); g.addColorStop(0, 'rgba(200,30,20,0)'); g.addColorStop(1, 'rgba(200,30,20,.55)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  vignette(c, 0.4, 360, 220);
+  c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.lineCap = 'round';
+  for (const [dx, dy] of [[-50, -40], [-58, 0], [-50, 40], [50, -40], [58, 0], [50, 40]]) { c.beginPath(); c.moveTo(sc.plate[0] + dx, sc.plate[1] + dy); c.lineTo(sc.plate[0] + dx * 1.22, sc.plate[1] + dy * 1.1 + (dx > 0 ? -4 : 4)); c.stroke(); }
+  c.restore();
+  barTrack(c, 410, 114, 194, 0.42, true);
+  // «бульк» у живота
+  c.save(); c.translate(sc.hip[0] + 6, sc.hip[1] + 78); c.rotate(-0.12); textOl(c, 'бульк', 0, 0, font(700, 28, FF.hand), '#D9E68A', 5, 'center'); c.restore();
+  c.fillStyle = 'rgba(217,230,138,.9)'; for (const [dx, dy, r] of [[44, 40, 4.5], [56, 26, 3.2], [40, 18, 2.6]]) { c.beginPath(); c.arc(sc.hip[0] + dx, sc.hip[1] + dy, r, 0, TAU); c.fill(); }
+  iconBtn(c, 12, 10, 'pause');
+  c.save(); c.translate(422, 58); c.rotate(-0.05); textOl(c, 'ДОЖИМ!', 0, 0, font(400, 44, FF.logo), P.yellow, 9, 'center', 'middle'); c.restore();
+  // бурлометр
+  const gx = 590, gy = 150, gr = 48;
+  c.save(); box(c, gx - 66, gy - 66, 132, 92, 18, 'rgba(14,15,19,.85)');
+  const segs = [P.green, P.yellow, P.orange, P.red];
+  segs.forEach((col, i) => { c.beginPath(); c.arc(gx, gy, gr - 6, Math.PI + i * Math.PI / 4 + 0.03, Math.PI + (i + 1) * Math.PI / 4 - 0.03); c.strokeStyle = col; c.lineWidth = 12; c.stroke(); });
+  const a = Math.PI + 0.86 * Math.PI; c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + Math.cos(a) * (gr - 14), gy + Math.sin(a) * (gr - 14)); c.stroke();
+  c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(gx, gy, 6, 0, TAU); c.fill();
+  text(c, 'БУРЛОМЕТР', gx, gy + 20, font(600, 13, FF.head), P.text, 'center');
+  c.restore();
+  fatigue(c, 800, 74, 26, 270, 1, { glow: true, shake: true });
+  // тапы
+  const hx = 676, hy = 290;
+  c.save(); for (const [r, al] of [[30, 0.9], [46, 0.55], [62, 0.3]]) { c.strokeStyle = `rgba(255,255,255,${al})`; c.lineWidth = 3; c.beginPath(); c.arc(hx, hy, r, 0, TAU); c.stroke(); }
+  c.fillStyle = 'rgba(255,255,255,.9)'; c.beginPath(); c.ellipse(hx, hy, 15, 18, 0, 0, TAU); c.fill(); c.restore();
+  textOl(c, 'ТАП-ТАП-ТАП', hx, hy + 88, font(700, 18, FF.head), '#FFFFFF', 5, 'center');
+  spotBtn(c, 44, 344, 1, true);
+  bubble(c, 92, 180, 'Помочь?', { side: 'left', font: font(700, 15, FF.body) });
+}
+function stink(c, x, y, s = 1) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  for (const [dx, dy, r, col] of [[-30, 0, 34, 'rgba(142,154,74,.5)'], [10, -16, 40, 'rgba(123,106,58,.45)'], [44, 4, 30, 'rgba(142,154,74,.5)'], [0, 18, 28, 'rgba(160,170,90,.45)']]) {
+    const g = c.createRadialGradient(dx, dy, 2, dx, dy, r); g.addColorStop(0, col); g.addColorStop(1, 'rgba(142,154,74,0)'); c.fillStyle = g; c.beginPath(); c.arc(dx, dy, r, 0, TAU); c.fill();
+  }
+  c.strokeStyle = '#B7C46A'; c.lineWidth = 4; c.lineCap = 'round';
+  for (const dx of [-26, 4, 34]) { c.beginPath(); c.moveTo(dx, -20); c.bezierCurveTo(dx - 14, -36, dx + 14, -50, dx, -66); c.bezierCurveTo(dx - 12, -78, dx + 8, -88, dx, -98); c.stroke(); }
+  c.restore();
+}
+function fly(c, x, y, s = 1) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  c.setLineDash([2, 4]); c.strokeStyle = 'rgba(244,242,236,.7)'; c.lineWidth = 1.5; c.beginPath(); c.ellipse(-14, 4, 16, 8, 0.3, 0.3, Math.PI * 1.6); c.stroke(); c.setLineDash([]);
+  c.fillStyle = 'rgba(230,240,255,.85)'; c.beginPath(); c.ellipse(-3, -5, 5, 3, -0.6, 0, TAU); c.ellipse(4, -5, 5, 3, 0.6, 0, TAU); c.fill();
+  c.fillStyle = INK; c.beginPath(); c.ellipse(0, 0, 4.5, 3.5, 0, 0, TAU); c.fill();
+  c.restore();
+}
+function drawFail(c) {
+  gymWall(c, 290, 3); gymFloor(c, 290, 5); pipes(c, 44);
+  mirror(c, 520, 120, 230, 120); door(c, 770, 130, 66, 160);
+  c.fillStyle = 'rgba(10,11,14,.42)'; c.fillRect(0, 0, W, H);
+  const g = c.createRadialGradient(260, 270, 40, 260, 270, 330); g.addColorStop(0, 'rgba(210,220,140,.18)'); g.addColorStop(1, 'rgba(210,220,140,0)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const sc = benchScene(c, 250, 354, 0.86, { t: 0, mood: 'fail' });
+  stink(c, sc.hip[0] + 52, sc.hip[1] + 4, 1.05);
+  fly(c, sc.hip[0] + 110, sc.hip[1] - 74, 1.1); fly(c, sc.hip[0] + 4, sc.hip[1] - 96, 0.9);
+  c.save(); c.translate(sc.hip[0] + 118, sc.hip[1] + 62); c.rotate(-0.08); textOl(c, 'пр-р-р…', 0, 0, font(700, 30, FF.hand), '#E8E0B8', 6, 'center'); c.restore();
+  person(c, 470, 384, 0.86, { build: 0.4, top: '#E85D9A', pants: '#4A3566', shoe: '#F4F2EC', hair: 'pony', hairC: '#E2B04A', arms: 'phone', mood: 'shock' });
+  person(c, 596, 384, 0.86, { build: 3, top: '#23262C', pants: '#3B3F47', hair: 'bald', arms: 'down', mood: 'shock', chain: true });
+  dumbbellSide(c, 640, 380, 0.7);
+  person(c, 760, 386, 0.92, { build: 1.6, type: 'robe', top: '#5C86C4', pants: '#5C86C4', shoe: '#3B3F47', hair: 'kerchief', hairC: '#C8433A', arms: 'mop', mood: 'stern', belly: true });
+  blob(c, [{ k: 'poly', p: [[802, 350], [834, 350], [830, 386], [806, 386]], c: '#9AA3AC' }, { k: 'arc', x: 818, y: 352, r: 14, a0: Math.PI, a1: TAU, w: 2.5, c: '#5A6068' }], 2);
+  for (const [x, y] of [[470, 206], [596, 206]]) textOl(c, '!', x + 30, y, font(700, 30, FF.head), P.yellow, 6, 'center');
+  bubble(c, 740, 214, ['Ну всё, милок.', 'На выход.'], { side: 'left' });
+  c.save(); c.translate(196, 70); c.rotate(-0.08);
+  box(c, -140, -40, 280, 80, 10, 'rgba(244,242,236,.94)', P.red, 5);
+  c.strokeStyle = P.red; c.lineWidth = 2; rrPath(c, -131, -31, 262, 62, 6); c.stroke();
+  text(c, 'АВАРИЯ', 0, 2, font(400, 42, FF.logo), P.red, 'center', 'middle');
+  c.restore();
+  box(c, 470, 12, 362, 142, 16, 'rgba(23,25,30,.94)', 'rgba(244,242,236,.2)', 1.5);
+  polaroid(c, 520, 64, 62, -0.08);
+  text(c, 'ТЕБЯ ВЫГНАЛИ', 566, 44, font(700, 22, FF.head), P.text, 'left');
+  text(c, 'из подвала «Железяка».', 566, 66, font(400, 14, FF.body), P.dim, 'left');
+  text(c, 'Фото уже на доске позора.', 566, 86, font(400, 14, FF.body), P.dim, 'left');
+  btn(c, 486, 104, 196, 40, 'СМЕНИТЬ КАЧАЛКУ  ▸', 'primary', 16);
+  btn(c, 692, 104, 126, 40, 'В УСАХ · 300', 'ghost', 15);
+}
+function drawDone(c) {
+  gymWall(c, 300, 21); gymFloor(c, 300, 23);
+  mirror(c, 40, 26, 340, 268);
+  bulb(c, 210, 18);
+  person(c, 214, 382, 1.16, { build: 1.6, stripes: true, band: true, arms: 'flex', mood: 'proud' });
+  sparkle(c, 128, 150, 12); sparkle(c, 304, 142, 10); sparkle(c, 290, 196, 7); sparkle(c, 150, 214, 7);
+  textOl(c, '+14', 214, 296, font(700, 26, FF.head), '#8FB4FF', 6, 'center');
+  textOl(c, '+8', 116, 172, font(700, 20, FF.head), P.yellow, 5, 'center');
+  vignette(c, 0.4, 220, 200, 120);
+  box(c, 412, 12, 420, 366, 18, 'rgba(23,25,30,.95)', 'rgba(244,242,236,.15)', 1.5);
+  text(c, 'ТРЕНИРОВКА ЗАКРЫТА', 432, 48, font(700, 26, FF.head), P.text, 'left');
+  text(c, '«Ноги потом» · 34 минуты', 432, 70, font(400, 14, FF.body), P.dim, 'left');
+  const tiles = [['24', 'повтора', P.text], ['6', 'в красной зоне ×2', '#FF8A78'], ['1', 'дожим ×5', P.yellow]];
+  tiles.forEach(([n, l, col], i) => { const x = 432 + i * 132; box(c, x, 82, 122, 58, 12, P.ui2); text(c, n, x + 12, 116, font(700, 28, FF.head), col, 'left'); text(c, l, x + 12, 132, font(400, 11.5, FF.body), P.dim, 'left'); });
+  text(c, 'РОСТ МЫШЦ', 432, 164, font(600, 13, FF.head), P.dim, 'left');
+  const rows = [['Грудь', 14, P.blue], ['Руки', 8, P.yellow], ['Спина', 5, P.green], ['Ноги', 0, P.red]];
+  rows.forEach(([name, val, col], i) => {
+    const y = 176 + i * 23; text(c, name, 432, y + 10, font(500, 14, FF.body), P.text, 'left');
+    if (val) { box(c, 494, y, 252, 11, 5.5, P.ui3); box(c, 494, y, 252 * val / 18, 11, 5.5, col); }
+    else text(c, 'опять мимо', 498, y + 13, font(700, 20, FF.hand), '#FF8A78', 'left');
+    text(c, '+' + val, 812, y + 11, font(700, 15, FF.head), val ? P.text : '#FF8A78', 'right');
+  });
+  canIcon(c, 444, 282, 0.95); text(c, '+85', 462, 290, font(700, 22, FF.head), P.text, 'left');
+  box(c, 516, 266, 300, 32, 16, null, P.yellow, 2); text(c, 'РЕКОРД · жим 60 кг × 9', 666, 287, font(600, 15, FF.head), P.yellow, 'center');
+  text(c, 'Красавчик. В четверг — ноги,', 432, 320, font(700, 19, FF.hand), '#E9DFC6', 'left');
+  text(c, 'без разговоров. — Валера', 432, 338, font(700, 19, FF.hand), '#E9DFC6', 'left');
+  btn(c, 640, 314, 176, 44, 'В ЗАЛ  ▸', 'primary', 18);
+}
+function drawPlan(c) {
+  c.fillStyle = '#1A1C21'; c.fillRect(0, 0, W, H);
+  const r = rng(31); c.globalAlpha = 0.5; for (let i = 0; i < 260; i++) { c.fillStyle = ['#2C3038', '#3A2E2E', '#2B3446'][i % 3]; c.fillRect(r() * W, r() * H, 2, 1.5); } c.globalAlpha = 1;
+  iconBtn(c, 12, 10, 'back');
+  text(c, 'ПРОГРАММА', 64, 24, font(600, 12, FF.head), P.dim, 'left');
+  text(c, '«НОГИ ПОТОМ»', 64, 46, font(700, 22, FF.head), P.text, 'left');
+  cans(c, 762, 30, 120);
+  text(c, 'УПРАЖНЕНИЯ', 14, 82, font(600, 13, FF.head), P.dim, 'left');
+  const ex = [['bench', 'Жим лёжа', 'грудь · руки', P.blue, 'in'], ['squat', 'Присед', 'ноги', P.red, ''], ['curl', 'Бицепс с гантелями', 'руки', '#C99A12', 'in'], ['pull', 'Подтягивания', 'спина', P.green, 'in'], ['dead', 'Становая', 'с 3-й качалки', '#59606B', 'lock']];
+  ex.forEach(([k, name, tags, col, st], i) => {
+    const y = 92 + i * 57;
+    c.globalAlpha = st === 'lock' ? 0.55 : 1;
+    box(c, 14, y, 258, 50, 12, P.ui2);
+    box(c, 22, y + 6, 38, 38, 9, col); picto(c, k, 41, y + 25);
+    text(c, name, 70, y + 22, font(500, 15, FF.body), P.text, 'left'); text(c, tags, 70, y + 40, font(400, 12, FF.body), P.dim, 'left');
+    if (st === 'in') { blob(c, [{ k: 'ell', x: 250, y: y + 25, rx: 12, ry: 12, c: P.green }], 0); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.6; c.lineCap = 'round'; c.beginPath(); c.moveTo(244, y + 25); c.lineTo(248.5, y + 29.5); c.lineTo(256, y + 20); c.stroke(); }
+    else if (st === 'lock') lockIcon(c, 250, y + 25, 1);
+    else { box(c, 238, y + 13, 24, 24, 12, null, P.dim, 2); c.strokeStyle = P.text; c.lineWidth = 2.4; c.beginPath(); c.moveTo(244, y + 25); c.lineTo(256, y + 25); c.moveTo(250, y + 19); c.lineTo(250, y + 31); c.stroke(); }
+    c.globalAlpha = 1;
+  });
+  text(c, 'ТРЕНИРОВКА · 3 УПРАЖНЕНИЯ', 288, 82, font(600, 13, FF.head), P.dim, 'left');
+  const plan = [['Жим лёжа', '60 кг', '3 × 8', 3], ['Подтягивания', 'свой вес', '3 × 5', 2], ['Бицепс с гантелями', '12 кг', '3 × 10', 2]];
+  plan.forEach(([name, kg, sr, risk], i) => {
+    const y = 92 + i * 72;
+    box(c, 288, y, 282, 64, 12, P.ui2);
+    blob(c, [{ k: 'ell', x: 308, y: y + 20, rx: 11, ry: 11, c: P.yellow }], 0); text(c, String(i + 1), 308, y + 21, font(700, 14, FF.head), INK, 'center', 'middle');
+    text(c, name, 326, y + 26, font(500, 15, FF.body), P.text, 'left');
+    for (let k = 0; k < 4; k++) box(c, 520 + k * 11, y + 15, 8, 10, 2, k < risk ? [P.green, P.yellow, P.orange, P.red][k] : P.ui3);
+    stepper(c, 300, y + 32, 120, kg); stepper(c, 428, y + 32, 130, sr);
+  });
+  c.save(); c.setLineDash([6, 5]); box(c, 288, 308, 282, 30, 12, null, P.dim, 1.5); c.restore();
+  text(c, '+  добавить упражнение', 429, 328, font(500, 14, FF.body), P.dim, 'center');
+  text(c, 'РОСТ', 288, 366, font(600, 13, FF.head), P.dim, 'left');
+  [['Грудь', 4, P.blue], ['Руки', 3, P.yellow], ['Спина', 2, P.green], ['Ноги', 0, P.red]].forEach(([n, v, col], i) => {
+    const x = 330 + i * 62; text(c, n, x, 366, font(500, 12.5, FF.body), v ? P.text : '#FF8A78', 'left');
+    for (let k = 0; k < 4; k++) box(c, x + k * 7, 371, 5, 8, 1.5, k < v ? col : P.ui3);
+  });
+  // прогноз
+  box(c, 584, 66, 248, 312, 14, '#20242B');
+  text(c, 'ПРОГНОЗ ТРЕНЕРА', 600, 90, font(600, 13, FF.head), P.dim, 'left');
+  const gx = 708, gy = 186, gr = 64;
+  [[P.green, 'халява'], [P.yellow, 'норм'], [P.orange, 'смело'], [P.red, 'обосрёшься']].forEach(([col, lab], i) => {
+    const a0 = Math.PI + i * Math.PI / 4, a1 = a0 + Math.PI / 4, am = (a0 + a1) / 2;
+    c.beginPath(); c.arc(gx, gy, gr, a0 + 0.025, a1 - 0.025); c.strokeStyle = col; c.lineWidth = 16; c.lineCap = 'butt'; c.stroke();
+    const side = i === 0 || i === 3;
+    const lx = side ? gx + (i === 0 ? -gr : gr) : gx + Math.cos(am) * (gr + 24), ly = side ? gy + 20 : gy + Math.sin(am) * (gr + 22);
+    text(c, lab, lx, ly, font(500, 11.5, FF.body), P.dim, 'center', 'middle');
+  });
+  const na = Math.PI + 0.66 * Math.PI; c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + Math.cos(na) * (gr - 12), gy + Math.sin(na) * (gr - 12)); c.stroke();
+  c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(gx, gy, 7, 0, TAU); c.fill();
+  text(c, 'СМЕЛО', gx, gy + 28, font(700, 20, FF.head), P.orange, 'center');
+  c.save(); c.translate(708, 246); c.rotate(-0.025); box(c, -110, -22, 220, 44, 3, '#F5E9A8'); c.fillStyle = 'rgba(0,0,0,.08)'; c.fillRect(-110, 18, 220, 4);
+  text(c, 'Смело. Только шаурму не ешь.', 0, -3, font(700, 17, FF.hand), '#2A2A30', 'center'); text(c, '— Валера', 96, 15, font(700, 15, FF.hand), '#5A5A60', 'right'); c.restore();
+  text(c, 'ПЕРЕКУС', 600, 288, font(600, 13, FF.head), P.dim, 'left');
+  [['Гречка', 1], ['Протеин', 0], ['Шаурма', 0]].forEach(([n, sel], i) => { const x = 598 + i * 77; box(c, x, 296, 71, 28, 14, sel ? 'rgba(244,193,46,.15)' : P.ui3, sel ? P.yellow : null, 2); text(c, n, x + 35.5, 315, font(500, 13, FF.body), sel ? P.yellow : P.text, 'center'); });
+  btn(c, 598, 334, 220, 36, 'В ЗАЛ  ▸', 'primary', 18);
+}
+function drawMap(c) {
+  c.fillStyle = '#CBD3BE'; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#93B9D6'; c.beginPath(); c.moveTo(560, 390); c.bezierCurveTo(610, 330, 740, 320, 844, 262); c.lineTo(844, 338); c.bezierCurveTo(760, 372, 690, 370, 650, 390); c.closePath(); c.fill();
+  c.strokeStyle = '#F2F0E6'; c.lineCap = 'butt';
+  c.lineWidth = 22; c.beginPath(); c.moveTo(0, 236); c.bezierCurveTo(300, 226, 520, 250, 844, 226); c.moveTo(412, 0); c.lineTo(404, 390); c.moveTo(412, 84); c.bezierCurveTo(560, 70, 700, 96, 844, 70); c.stroke();
+  c.setLineDash([10, 10]); c.lineWidth = 2; c.strokeStyle = '#C9C3AE'; c.beginPath(); c.moveTo(0, 236); c.bezierCurveTo(300, 226, 520, 250, 844, 226); c.moveTo(412, 0); c.lineTo(404, 390); c.stroke(); c.setLineDash([]);
+  const r = rng(77);
+  const house = (x, y, w, h) => { blob(c, [{ k: 'rr', x, y, w, h, r: 3, c: '#B2BAA4' }], 1.5); c.fillStyle = 'rgba(0,0,0,.1)'; c.fillRect(x, y + h - 5, w, 5); };
+  const tree = (x, y, rr) => blob(c, [{ k: 'ell', x, y, rx: rr, ry: rr, c: '#88AC70' }], 1.5);
+  [[20, 64, 60, 34], [24, 110, 44, 56], [180, 60, 52, 40], [170, 112, 62, 30], [190, 168, 40, 40], [440, 120, 52, 34], [440, 170, 70, 30], [700, 110, 60, 40], [770, 112, 54, 70], [470, 268, 46, 40], [442, 330, 64, 40], [20, 262, 50, 40], [96, 280, 44, 50]].forEach(([x, y, w, h]) => house(x, y, w, h));
+  for (let i = 0; i < 26; i++) { const x = r() * W, y = 40 + r() * 340; if (y < 62 || Math.abs(y - 236) < 20 || Math.abs(x - 408) < 20) continue; tree(x, y, 6 + r() * 6); }
+  c.save(); for (let i = 0; i < 6; i++) { blob(c, [{ k: 'rr', x: 446 + i * 22, y: 188, w: 20, h: 28, r: 1, c: '#9AA08F' }], 1.2); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(450 + i * 22, 200, 12, 16); }
+  text(c, 'гаражи', 584, 210, font(700, 18, FF.hand), '#5B624F', 'left'); c.restore();
+  // школа и стадион
+  blob(c, [{ k: 'rr', x: 238, y: 112, w: 120, h: 50, r: 3, c: '#C9A27A' }], 2); c.fillStyle = '#9F7C5B'; for (let i = 0; i < 6; i++) c.fillRect(246 + i * 18, 122, 10, 12);
+  blob(c, [{ k: 'rr', x: 248, y: 168, w: 110, h: 48, r: 22, c: '#9ABF7C' }], 1.5); c.strokeStyle = '#E8DCC0'; c.lineWidth = 3; rrPath(c, 256, 174, 94, 36, 18); c.stroke();
+  c.save(); c.setLineDash([2, 9]); c.lineCap = 'round'; c.strokeStyle = 'rgba(27,28,34,.6)'; c.lineWidth = 4; c.beginPath(); c.moveTo(120, 140); c.bezierCurveTo(170, 120, 230, 112, 296, 136); c.stroke(); c.restore();
+  const pin = (x, y, st, label, sub) => {
+    const col = { ban: P.red, here: P.yellow, open: '#FFFFFF', lock: '#8E959E', secret: '#3A3F48' }[st];
+    if (st === 'here') { c.save(); c.strokeStyle = 'rgba(244,193,46,.75)'; c.lineWidth = 3; for (const rr of [32, 41]) { c.beginPath(); c.arc(x, y, rr, 0, TAU); c.stroke(); } c.restore(); }
+    blob(c, [{ k: 'ell', x, y, rx: 23, ry: 23, c: col }], 2.5);
+    if (st === 'lock') lockIcon(c, x, y + 2, 1.1, '#FFFFFF');
+    else if (st === 'secret') text(c, '?', x, y + 2, font(700, 24, FF.head), '#FFFFFF', 'center', 'middle');
+    else { picto(c, 'curl', x, y, st === 'ban' ? '#FFFFFF' : INK); }
+    if (st === 'ban') { c.strokeStyle = INK; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(x - 15, y - 15); c.lineTo(x + 15, y + 15); c.stroke(); }
+    c.font = font(600, 14, FF.head); const tw = c.measureText(label).width + 18;
+    box(c, x - tw / 2, y + 28, tw, 24, 12, 'rgba(23,25,30,.92)'); text(c, label, x, y + 45, font(600, 14, FF.head), P.text, 'center');
+    if (sub) { c.font = font(500, 12, FF.body); const sw2 = c.measureText(sub).width + 14; box(c, x - sw2 / 2, y + 55, sw2, 19, 9.5, 'rgba(244,242,236,.85)'); text(c, sub, x, y + 69, font(500, 12, FF.body), st === 'ban' ? P.red : INK, 'center'); }
+  };
+  pin(104, 140, 'ban', 'ПОДВАЛ «ЖЕЛЕЗЯКА»', 'ты изгнан');
+  polaroid(c, 52, 102, 34, -0.15);
+  pin(300, 120, 'here', 'ШКОЛЬНЫЙ СПОРТЗАЛ');
+  head(c, 328, 88, 13, { mood: 'calm', band: true, ol: 2 });
+  pin(512, 128, 'open', 'ТУРНИКИ ВО ДВОРЕ');
+  pin(724, 128, 'lock', 'ФИТНЕС «ГЛАМУР»', 'нужен жим 60 кг');
+  pin(560, 292, 'lock', 'ОЛДСКУЛ «АРСЕНАЛ»', 'нужен присед 80 кг');
+  pin(770, 280, 'secret', '???', 'подпольная лига');
+  c.fillStyle = 'rgba(10,11,14,.86)'; c.fillRect(0, 0, W, 48);
+  iconBtn(c, 12, 4, 'back');
+  text(c, 'РАЙОН «ЗАВОДСКОЙ»', 64, 32, font(700, 20, FF.head), P.text, 'left');
+  cans(c, 762, 26, 120);
+  box(c, 14, 252, 366, 126, 16, 'rgba(23,25,30,.95)');
+  text(c, 'ШКОЛЬНЫЙ СПОРТЗАЛ', 30, 280, font(700, 19, FF.head), P.text, 'left');
+  text(c, 'Снаряды: канат, козёл, шведская стенка', 30, 302, font(400, 13.5, FF.body), P.dim, 'left');
+  text(c, 'Хозяин: физрук Петрович со свистком', 30, 322, font(400, 13.5, FF.body), P.dim, 'left');
+  text(c, 'Фишка: подходы под свисток', 30, 342, font(400, 13.5, FF.body), P.dim, 'left');
+  text(c, 'Вход свободный', 30, 364, font(500, 13.5, FF.body), '#7FD39A', 'left');
+  btn(c, 250, 330, 116, 38, 'ИДТИ  ▸', 'primary', 17);
+}
+
+const SCREENS = { hub: drawHub, plan: drawPlan, set: drawSet, push: drawPush, fail: drawFail, done: drawDone, map: drawMap };
+function render(cv) {
+  const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+  cv.width = W * dpr; cv.height = H * dpr;
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  try { SCREENS[cv.dataset.screen](c); }
+  catch (e) { c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = '#5a1010'; c.fillRect(0, 0, W, 40); c.fillStyle = '#fff'; c.font = '14px monospace'; c.textAlign = 'left'; c.textBaseline = 'alphabetic'; c.fillText('Ошибка: ' + e.message, 10, 25); console.error(e); }
+}
+function renderAll() { document.querySelectorAll('canvas[data-screen]').forEach(render); }
+
+// Локальный режим для снимков: index.html?shot=hub — только один экран (для PNG в репозитории).
+try {
+  const shot = location.protocol === 'file:' ? new URLSearchParams(location.search).get('shot') : null;
+  if (shot && SCREENS[shot]) { document.body.innerHTML = '<canvas data-screen="' + shot + '" style="display:block;width:844px;height:390px"></canvas>'; document.body.style.margin = '0'; document.body.style.padding = '0'; document.documentElement.style.padding = '0'; }
+} catch (e) { /* без снимков */ }
+
+renderAll();
+try {
+  if (document.fonts && document.fonts.load) {
+    Promise.all(['700 20px Oswald', '400 20px "Rubik Mono One"', '500 20px Rubik', '700 20px Caveat'].map((f) => document.fonts.load(f))).then(renderAll, renderAll);
+  }
+} catch (e) { /* шрифты не загрузились — остаются запасные */ }
+
+/* ---------- выбор механик и ответов ---------- */
+const form = document.getElementById('pick');
+if (!form) return;
+const KEY = 'eshche-razok-pick-v1';
+const restore = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (!saved) return;
+    form.querySelectorAll('input[type="checkbox"]').forEach((el) => { if (el.id in saved.m) el.checked = saved.m[el.id]; });
+    form.querySelectorAll('input[type="radio"]').forEach((el) => { el.checked = saved.q[el.name] === el.value; });
+    const own = document.getElementById('q-name-own'); if (own && saved.own) own.value = saved.own;
+  } catch (e) { /* нет хранилища — просто без памяти */ }
+};
+const save = () => {
+  try {
+    const m = {}, q = {};
+    form.querySelectorAll('input[type="checkbox"]').forEach((el) => { m[el.id] = el.checked; });
+    form.querySelectorAll('input[type="radio"]:checked').forEach((el) => { q[el.name] = el.value; });
+    localStorage.setItem(KEY, JSON.stringify({ m, q, own: document.getElementById('q-name-own').value }));
+  } catch (e) { /* без памяти */ }
+};
+const QN = { 'q-name': 'Название', 'q-style': 'Графика', 'q-tone': 'Юмор', 'q-start': 'Начать с', 'q-ban': 'Изгнание', 'q-hero': 'Герой' };
+const answers = () => {
+  const out = [];
+  for (const name of Object.keys(QN)) {
+    const el = form.querySelector(`input[name="${name}"]:checked`);
+    let v = el ? el.value : '';
+    if (name === 'q-name') { const own = document.getElementById('q-name-own').value.trim(); if (own) v = '«' + own.replace(/[«»"]/g, '') + '»'; }
+    if (v) out.push([QN[name], v]);
+  }
+  return out;
+};
+const update = () => {
+  const n = form.querySelectorAll('input[type="checkbox"]:checked').length;
+  document.getElementById('pickCount').textContent = 'Отмечено механик: ' + n + ' из ' + form.querySelectorAll('input[type="checkbox"]').length;
+  document.getElementById('pickHint').textContent = 'Ответов на вопросы: ' + answers().length + ' из ' + Object.keys(QN).length;
+};
+const buildText = () => {
+  const lines = ['«Ещё разок!» — выбор для прототипа', '', 'Механики:'];
+  form.querySelectorAll('input[type="checkbox"]:checked').forEach((el) => lines.push('• ' + el.dataset.name));
+  const a = answers(); if (a.length) { lines.push('', 'Решения:'); a.forEach(([k, v]) => lines.push('• ' + k + ': ' + v)); }
+  return lines.join('\n');
+};
+restore(); update();
+form.addEventListener('change', () => { update(); save(); });
+form.addEventListener('input', () => { update(); save(); });
+form.addEventListener('submit', (e) => e.preventDefault());
+const btnEl = document.getElementById('copyBtn'), fb = document.getElementById('copyFallback');
+btnEl.addEventListener('click', () => {
+  const t = buildText();
+  const showFallback = () => { fb.hidden = false; fb.value = t; fb.focus(); fb.select(); btnEl.textContent = 'Выдели и скопируй'; };
+  try {
+    navigator.clipboard.writeText(t).then(() => { fb.hidden = true; btnEl.textContent = 'Скопировано'; setTimeout(() => { btnEl.textContent = 'Скопировать выбор'; }, 2200); }, showFallback);
+  } catch (e) { showFallback(); }
+});
+})();
+</script>
