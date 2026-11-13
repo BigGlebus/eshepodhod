@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v4';
+const APP_VERSION = 'v5';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -776,22 +776,16 @@ function renderOffline(oc) { return new Promise((res, rej) => { try { oc.oncompl
 // жёсткая атака, плавающие форманты. Каждый вариант считается в двух дублях — повторы не звучат одинаково.
 const VOW = { ы: [300, 1480, 2350, 3300], а: [720, 1250, 2500, 3400], о: [500, 860, 2450, 3350], п: [260, 650, 2150, 3250], х: [500, 1400, 2500, 3500] };
 const VOICES = [
-  { id: 'op', name: '«Оп!»', use: 'лёгкий, тап в дожиме', tiers: ['light', 'tap'], sp: { len: 0.22, attack: 1, press: 0.55, f0: [[0, 150], [0.3, 178], [0.75, 150], [1, 128]], keys: [
-    { t: 0, v: 'о', voice: 1, noise: 0.3, amp: 0.2 }, { t: 0.07, v: 'о', voice: 1, noise: 0.12, amp: 1 }, { t: 0.62, v: 'о', voice: 1, noise: 0.1, amp: 0.85 },
-    { t: 0.8, v: 'п', voice: 0.7, noise: 0.05, amp: 0.25 }, { t: 0.86, v: 'п', voice: 0, amp: 0 }, { t: 1, v: 'п', amp: 0 }] } },
-  { id: 'opa', name: '«Опа!»', use: 'лёгкий повтор', tiers: ['light'], sp: { len: 0.4, attack: 1, press: 0.5, f0: [[0, 148], [0.2, 172], [0.38, 150], [0.55, 168], [1, 118]], keys: [
-    { t: 0, v: 'о', voice: 1, noise: 0.3, amp: 0.2 }, { t: 0.05, v: 'о', voice: 1, noise: 0.12, amp: 1 }, { t: 0.3, v: 'о', voice: 1, noise: 0.1, amp: 0.85 },
-    { t: 0.37, v: 'п', voice: 0.5, amp: 0.15 }, { t: 0.4, v: 'п', voice: 0, amp: 0 }, { t: 0.47, v: 'п', voice: 0, amp: 0 },
-    { t: 0.48, v: 'п', voice: 0, noise: 1, amp: 0.7 }, { t: 0.51, v: 'а', voice: 1, noise: 0.15, amp: 1 }, { t: 0.82, v: 'а', voice: 1, noise: 0.2, amp: 0.7 }, { t: 1, v: 'а', voice: 0.2, noise: 0.4, amp: 0 }] } },
-  { id: 'oop', name: '«Ооп!»', use: 'средний, тап в дожиме', tiers: ['mid', 'tap'], sp: { len: 0.34, attack: 1, press: 0.65, f0: [[0, 132], [0.45, 168], [0.8, 150], [1, 126]], keys: [
-    { t: 0, v: 'о', voice: 1, noise: 0.3, amp: 0.2 }, { t: 0.05, v: 'о', voice: 1, noise: 0.12, amp: 1 }, { t: 0.74, v: 'о', voice: 1, noise: 0.12, amp: 0.9 },
-    { t: 0.87, v: 'п', voice: 0.6, amp: 0.2 }, { t: 0.92, v: 'п', voice: 0, amp: 0 }, { t: 1, v: 'п', amp: 0 }] } },
-  { id: 'ooop', name: '«Оооп!»', use: 'средний повтор', tiers: ['mid'], sp: { len: 0.56, attack: 1, press: 0.7, trem: [6, 0.018], f0: [[0, 124], [0.3, 148], [0.7, 172], [0.88, 160], [1, 128]], keys: [
+  { id: 'ooop', name: '«Оооп!»', use: 'лёгкий, раз в 2–3 повтора', tiers: ['light'], sp: { len: 0.56, attack: 1, press: 0.7, trem: [6, 0.018], f0: [[0, 124], [0.3, 148], [0.7, 172], [0.88, 160], [1, 128]], keys: [
     { t: 0, v: 'о', voice: 1, noise: 0.3, amp: 0.2 }, { t: 0.04, v: 'о', voice: 1, noise: 0.14, amp: 0.95 }, { t: 0.8, v: 'о', voice: 1, noise: 0.16, amp: 1 },
     { t: 0.9, v: 'п', voice: 0.6, amp: 0.2 }, { t: 0.94, v: 'п', voice: 0, amp: 0 }, { t: 1, v: 'п', amp: 0 }] } },
-  { id: 'yygh', name: '«Ыыыгх»', use: 'тяжёлый повтор', tiers: ['heavy'], sp: { len: 0.75, press: 0.9, fry: 0.08, trem: [7, 0.035], growl: 0.35, f0: [[0, 104], [0.3, 132], [0.6, 150], [1, 165]], keys: [
+  // длинный и плавный: мягкое начало, долгое «о» с подъёмом, губы смыкаются постепенно, в конце лёгкий выдох
+  { id: 'oooop', name: '«Ооооп!»', use: 'средний повтор', tiers: ['mid'], sp: { len: 0.85, press: 0.6, trem: [5.5, 0.02], f0: [[0, 118], [0.25, 140], [0.6, 165], [0.85, 158], [1, 135]], keys: [
+    { t: 0, v: 'о', voice: 1, noise: 0.25, amp: 0 }, { t: 0.08, v: 'о', voice: 1, noise: 0.12, amp: 0.9 }, { t: 0.6, v: 'о', voice: 1, noise: 0.14, amp: 1 }, { t: 0.82, v: 'о', voice: 1, noise: 0.16, amp: 0.85 },
+    { t: 0.93, v: 'п', voice: 0.3, noise: 0.1, amp: 0.2 }, { t: 0.96, v: 'п', voice: 0, noise: 0.25, amp: 0.12 }, { t: 1, v: 'п', voice: 0, noise: 0, amp: 0 }] } },
+  { id: 'yygh', name: '«Ыыыгх»', use: 'тяжёлый повтор, дожим', tiers: ['heavy', 'tap'], sp: { len: 0.75, press: 0.9, fry: 0.08, trem: [7, 0.035], growl: 0.35, f0: [[0, 104], [0.3, 132], [0.6, 150], [1, 165]], keys: [
     { t: 0, v: 'ы', voice: 1, noise: 0.1, amp: 0.5 }, { t: 0.1, v: 'ы', voice: 1, noise: 0.12, amp: 1 }, { t: 0.82, v: 'ы', voice: 1, noise: 0.2, amp: 1 }, { t: 0.88, v: 'х', voice: 0.3, noise: 0.9, amp: 0.8 }, { t: 1, v: 'х', voice: 0, noise: 0.7, amp: 0 }] } },
-  { id: 'aargh', name: '«Аааргх»', use: 'тяжёлый повтор', tiers: ['heavy'], sp: { len: 0.85, press: 0.85, fry: 0.06, trem: [8, 0.045], growl: 0.6, f0: [[0, 110], [0.3, 140], [0.6, 160], [1, 178]], keys: [
+  { id: 'aargh', name: '«Аааргх»', use: 'тяжёлый повтор, дожим', tiers: ['heavy', 'tap'], sp: { len: 0.85, press: 0.85, fry: 0.06, trem: [8, 0.045], growl: 0.6, f0: [[0, 110], [0.3, 140], [0.6, 160], [1, 178]], keys: [
     { t: 0, v: 'а', voice: 1, noise: 0.15, amp: 0.4 }, { t: 0.12, v: 'а', voice: 1, noise: 0.2, amp: 1 }, { t: 0.8, v: 'а', voice: 1, noise: 0.25, amp: 1 }, { t: 0.9, v: 'х', voice: 0.3, noise: 0.9, amp: 0.7 }, { t: 1, v: 'х', voice: 0, noise: 0.6, amp: 0 }] } },
 ];
 function keyAt(arr, t) {
@@ -882,7 +876,8 @@ async function addRoom(buf, wet = 0.2) {
   for (const [ms, gg] of [[9, 0.6], [15, 0.4], [23, 0.3], [37, 0.2]]) d[Math.floor(sr * ms / 1000)] += gg;
   const s = oc.createBufferSource(); s.buffer = buf; const conv = oc.createConvolver(); conv.buffer = ir;
   const wg = oc.createGain(); wg.gain.value = wet; s.connect(oc.destination); s.connect(conv); conv.connect(wg); wg.connect(oc.destination); s.start();
-  return normBuf(await renderOffline(oc));
+  const out = normBuf(await renderOffline(oc)); out.tail = 0.3;   // хвост эха не держит канал голоса героя
+  return out;
 }
 async function addRoomAll() {
   if (!OAC) return;
@@ -956,15 +951,40 @@ function play(name, _vol, rate = 1) {
   if (!A || !A.buf[name]) return null;
   try { const s = A.ctx.createBufferSource(); s.buffer = A.buf[name]; s.playbackRate.value = rate; s.connect(A.master); s.start(); return s; } catch (e) { return null; }
 }
+// Звуки героя идут по одному каналу и никогда не накладываются: новый голос не начинается, пока не доиграл
+// прежний (хвост эха не считается). Бульканье живота встаёт в очередь сразу после голоса.
+function heroPlay(name, rate = 1, queue = false) {
+  if (!A || !A.buf[name]) return false;
+  const now = A.ctx.currentTime, until = A.heroUntil || 0;
+  if (now < until && !queue) return false;
+  const when = Math.max(now, until), b = A.buf[name];
+  try {
+    const s = A.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate; s.connect(A.master); s.start(when);
+    const list = A.heroSrcs || (A.heroSrcs = []); list.push(s); s.onended = () => { const i = list.indexOf(s); if (i >= 0) list.splice(i, 1); };
+    A.heroSrc = s; A.heroUntil = when + (b.duration - (b.tail || 0)) / rate;
+    (A.heroLog || (A.heroLog = [])).push([when, A.heroUntil]); if (A.heroLog.length > 200) A.heroLog.shift();
+    return true;
+  } catch (e) { return false; }
+}
+function heroStop() {
+  if (!A || !A.heroSrcs || !A.heroSrcs.length) return;
+  const now = A.ctx.currentTime;
+  for (const s of A.heroSrcs.splice(0)) { try { s.stop(); } catch (e) { /* уже */ } }   // и звучащий голос, и очередь за ним
+  A.heroSrc = null; A.heroUntil = 0;
+  // в журнале оборванный звук заканчивается сейчас; ещё не начавшиеся (в очереди) — тоже не звучали
+  if (A.heroLog) for (const it of A.heroLog) if (it[1] > now) it[1] = Math.max(it[0], now);
+}
 // Голос по степени усталости; варианты, выключенные на экране «Звуки», не звучат.
 let lastVoice = '';
 function playVoice(tier) {
   let list = VOICES.filter((v) => v.tiers.includes(tier) && !S.voiceOff[v.id]);
   if (!list.length) list = VOICES.filter((v) => v.tiers.includes(tier));
   let v = pick(list); if (list.length > 1 && v.id === lastVoice) v = pick(list.filter((x) => x.id !== lastVoice));
-  lastVoice = v.id; play('v_' + v.id + '_' + (Math.random() < 0.5 ? 0 : 1), 1, 0.97 + Math.random() * 0.06);
+  const ok = heroPlay('v_' + v.id + '_' + (Math.random() < 0.5 ? 0 : 1), 0.97 + Math.random() * 0.06);
+  if (ok) lastVoice = v.id;
+  return ok;
 }
-function playMeme() { if (A && A.buf.meme) play('meme'); else play('fart'); }
+function playMeme() { heroStop(); heroPlay(A && A.buf.meme ? 'meme' : 'fart'); }
 
 /* ================= игра ================= */
 let state = 'title', stateT = 0;
@@ -1000,7 +1020,7 @@ function startSet(weight, target, tut) {
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null };
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, lightCnt: 0, lightNext: 1, tapCnt: 0, tapNext: 2 };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle'), 200);
 }
@@ -1033,7 +1053,7 @@ function answerMore(yes) {
 // решается в момент, когда штанга встала. В обучении звонков нет — сначала надо попробовать страховку.
 let FORCE_CALL = null;
 function enterPush() {
-  R.mode = 'push'; R.pushT = 0; R.pressing = false; play('bulk');
+  R.mode = 'push'; R.pushT = 0; R.pressing = false; R.tapCnt = 0; R.tapNext = 2; heroPlay('bulk', 1, true);
   if (R.call) { R.call.end = 0; R.bark = null; return; }   // ещё не договорил с прошлого раза
   const callNow = R.spotLeft > 0 && !R.tut && (FORCE_CALL ?? Math.random() < 0.5);
   if (callNow) { R.call = { t: 0, end: 0 }; R.bark = null; play('ring'); }
@@ -1043,7 +1063,9 @@ function pushTap(x, y) {
   R.taps.push({ x, y, t: 0 });
   R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25));
   const before = R.burl; R.burl += 0.045 + Math.random() * 0.02;
-  if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) play('bulk', 1, 0.9 + R.burl * 0.4); else playVoice('tap');
+  // голос — примерно раз в 3–4 тапа и только когда прошлый доиграл; бульканье живота — в очередь за голосом
+  if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) heroPlay('bulk', 0.9 + R.burl * 0.4, true);
+  else if (++R.tapCnt >= R.tapNext && playVoice('tap')) { R.tapCnt = 0; R.tapNext = 3 + (Math.random() < 0.5 ? 0 : 1); }
   if (R.burl >= 1) { crash(); return; }
   if (R.pos >= 1) { R.mode = 'lift'; R.fat = 0.94; R.bark = null; S.pushSeen = true; completeRep('legend'); }
 }
@@ -1052,10 +1074,11 @@ function callSpot() {
   if (!(R.mode === 'push' || (R.mode === 'lift' && R.pos < 1))) return;
   R.spotLeft--; R.mode = 'spot'; R.spotT = 0; R.spotFrom = R.pos; R.armed = true; R.bark = null; S.pushSeen = true;
 }
-// Мотивация: выбегает здоровенный качок, кричит — усталость обнуляется, а в дожиме штанга уходит наверх гарантированно.
+// Мотивация — только в дожиме: выбегает здоровенный качок, кричит, и штанга гарантированно уходит наверх.
+// Силы она не восстанавливает: после дожима усталость такая же, как после обычного дожатого повтора.
 const BRO_FREEZE = 2.2;
 function callBro() {
-  if (!R || R.broUsed || S.cans < BRO_PRICE || !(R.mode === 'lift' || R.mode === 'push')) return;
+  if (!R || R.broUsed || S.cans < BRO_PRICE || R.mode !== 'push') return;
   S.cans -= BRO_PRICE; save();
   const clip = A && A.buf.bro ? A.buf.bro.duration : 3;
   R.broUsed = true; R.bro = { t: 0, from: R.mode, fat0: R.fat, pos0: R.pos, dur: Math.max(BRO_FREEZE + 0.8, clip + 0.4) };
@@ -1124,7 +1147,12 @@ function updateSet(dt) {
     if (R.askPending && R.pos >= 1) { R.askPending = false; R.mode = 'ask'; R.askT = 0; R.pressing = false; bark('more'); return; }
     if (hold && R.pos < 1) {
       R.idle = 0;
-      if (!R.pressing) { R.pressing = true; R.repK = 0.92 + Math.random() * 0.16; playVoice(R.fat < 0.6 ? 'light' : R.fat < 0.85 ? 'mid' : 'heavy'); }
+      if (!R.pressing) {
+        R.pressing = true; R.repK = 0.92 + Math.random() * 0.16;
+        // пока легко — «Оооп» раз в 2–3 повтора; на средней усталости и выше — на каждом повторе (если прошлый голос доиграл)
+        if (R.fat < 0.6) { if (++R.lightCnt >= R.lightNext && playVoice('light')) { R.lightCnt = 0; R.lightNext = 2 + (Math.random() < 0.5 ? 0 : 1); } }
+        else playVoice(R.fat < 0.85 ? 'mid' : 'heavy');
+      }
       const dz = (R.pos > 0.38 && R.pos < 0.66) ? (1 - 0.62 * R.fat) : 1;
       const v = 0.85 * (1 - 0.6 * R.fat) * dz / Math.pow(R.load, 0.6);
       const dp = Math.min(1 - R.pos, v * dt);
@@ -1152,13 +1180,8 @@ function updateSet(dt) {
     if (R.pos <= 0) { R.pos = 0; crash(); }
   } else if (R.mode === 'motiv') {
     const b = R.bro, k = easeOut((b.t - 0.6) / (BRO_FREEZE - 0.8));
-    R.fat = lerp(b.fat0, 0, k);
-    if (b.from === 'push') R.pos = lerp(b.pos0, 1, k);
-    if (b.t >= BRO_FREEZE) {
-      R.mode = 'lift'; R.fat = 0; R.idle = 0;
-      fx('СИЛЫ ВЕРНУЛИСЬ!', P.good, 28, 196);
-      if (b.from === 'push') { R.pos = 1; R.armed = true; S.pushSeen = true; completeRep('legend'); }
-    }
+    R.pos = lerp(b.pos0, 1, k);
+    if (b.t >= BRO_FREEZE) { R.mode = 'lift'; R.idle = 0; R.pos = 1; R.fat = 0.94; R.armed = true; S.pushSeen = true; completeRep('legend'); }
   } else if (R.mode === 'spot') {
     R.spotT += dt; R.pos = Math.min(1, R.spotFrom + (1 - R.spotFrom) * easeOut(R.spotT / 1.1));
     if (R.spotT >= 1.1) { R.mode = 'lift'; R.pos = 1; R.fat = Math.min(R.fat, 0.9); completeRep('spot'); bark('spotted'); }
@@ -1301,7 +1324,8 @@ function drawSetHud() {
     if (R.call.t < 0.8) { const k = Math.sin(R.call.t * 40) * 3; textOl(g, 'дзынь!', sx + 70 + k, 108, font(700, 24, FF.hand), P.yellow, 5, 'center'); }
     else { const lines = BARKS[GYMS[S.gym].spot].call; bubble(g, sx + 30, 116, lines[Math.floor((R.call.t - 0.8) / 2.4) % lines.length], { side: 'right', font: font(700, 14, FF.body) }); }
   } else if (R.bark) bubble(g, spotterX() + 30, 116, R.bark.text, { side: 'right', font: font(700, R.bark.text === 'ЕЩЁ РАЗОК!' ? 18 : 14, FF.body) });
-  if (R.bro && R.bro.t > 0.45 && R.bro.t < R.bro.dur - 0.5) bubble(g, broX() + 34, 100, R.bro.t < 2.6 ? 'YEAH BUDDY!' : 'LIGHTWEIGHT, BABY!', { side: 'right', font: font(700, 17, FF.head), bg: P.yellow });
+  // надписи совпадают с записью: «Yeah buddy» — первые ~1,5 с, «Lightweight» — с ~1,9 с
+  if (R.bro && R.bro.t > 0.3 && R.bro.t < R.bro.dur - 0.4) bubble(g, broX() + 34, 100, R.bro.t < 1.75 ? 'YEAH BUDDY!' : 'LIGHTWEIGHT!', { side: 'right', font: font(700, 17, FF.head), bg: P.yellow });
   for (const f of R.fx) { const k = f.t / f.life; g.save(); g.globalAlpha = 1 - Math.max(0, k - 0.6) / 0.4; textOl(g, f.text, f.x, f.y - k * 40, font(700, f.size, FF.head), f.col, 6, 'center'); g.restore(); }
   if (R.mode === 'ask') drawAsk();
 }
@@ -1322,8 +1346,8 @@ function drawAsk() {
 }
 // Кнопка мотивации (банки протеина).
 function broBtn(pushing) {
-  if (R.broUsed || R.mode === 'ask') return;
-  const x = 628, y = 10, w = 154, h = 38, can = S.cans >= BRO_PRICE && (R.mode === 'lift' || R.mode === 'push'), hotB = can && pushing;
+  if (R.broUsed || R.mode !== 'push') return;   // кнопка появляется только в дожиме
+  const x = 628, y = 10, w = 154, h = 38, can = S.cans >= BRO_PRICE, hotB = can && pushing;
   if (hotB) { g.save(); g.strokeStyle = 'rgba(244,193,46,.55)'; g.lineWidth = 3; const k2 = (R.t * 2) % 1; rrPath(g, x - 4 - k2 * 6, y - 4 - k2 * 6, w + 8 + k2 * 12, h + 8 + k2 * 12, 24); g.stroke(); g.restore(); }
   g.save(); g.globalAlpha = can ? 1 : 0.45;
   box(g, x, y, w, h, 19, hotB ? P.yellow : 'rgba(23,25,30,.88)', hotB ? INK : 'rgba(244,242,236,.35)', hotB ? 2.5 : 1.5);
@@ -1462,7 +1486,7 @@ function drawPlan() {
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
     hot(x, y, w, h, () => startSet(p.weight, p.reps, false));
   });
-  text(g, 'В подходе: «Мотивация» за ' + BRO_PRICE + ' банок сбрасывает усталость, а в дожиме дожимает за тебя.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
+  text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
   text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 360, font(700, 20, FF.hand), '#E9DFC6', 'left');
   text(g, 'Тапни по плану, чтобы начать', 820, 360, font(400, 13, FF.body), P.dim, 'right');
 }
@@ -1639,6 +1663,7 @@ window.ER = {
   step(sec, fps = 60) { const dt = 1 / fps; for (let i = 0; i < Math.round(sec * fps); i++) update(dt); draw(); },
   more(v) { answerMore(v); },
   forceCall(v) { FORCE_CALL = v; },
+  heroLog() { return A && A.heroLog ? A.heroLog.slice() : []; },
   bro() { callBro(); },
   loud() { if (!A) return null; const o = {}; for (const [k, b] of Object.entries(A.buf)) o[k] = +(20 * Math.log10(measureLoud(b) / SFX_TARGET)).toFixed(1); return o; },
   audioInfo() {

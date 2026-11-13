@@ -1,12 +1,13 @@
 // Переводит звук (ogg/opus из Telegram, mp3 и т. п.) в WAV 24 кГц моно: iPhone не всегда играет Ogg Opus.
 // Декодирует безголовый Chrome (без звука), тишина по краям обрезается, громкость выравнивается.
-// Запуск: node tools/to-wav.mjs "вход.ogg" sounds/выход.wav
+// Запуск: node tools/to-wav.mjs "вход.ogg" sounds/выход.wav [с_секунды по_секунду]
+// С указанным отрезком берётся только он, края плавно затухают (вход 20 мс, выход 120 мс).
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const [, , inp, outp] = process.argv;
+const [, , inp, outp, cutFrom, cutTo] = process.argv;
 if (!inp || !outp) { console.error('node tools/to-wav.mjs вход выход.wav'); process.exit(1); }
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9800 + Math.floor(Math.random() * 150);
@@ -28,9 +29,18 @@ const fn = `(async (b64) => {
   const SR = 24000, off = new OfflineAudioContext(1, Math.ceil(buf.duration * SR), SR);
   const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
   let d = (await off.startRendering()).getChannelData(0);
+  const cut = ${JSON.stringify(cutFrom != null ? [Number(cutFrom), Number(cutTo)] : null)};
+  if (cut) {
+    d = d.slice(Math.round(cut[0] * SR), Math.round(cut[1] * SR));
+    const fi = Math.round(SR * 0.02), fo = Math.round(SR * 0.12);
+    for (let i = 0; i < fi && i < d.length; i++) d[i] *= i / fi;
+    for (let i = 0; i < fo && i < d.length; i++) d[d.length - 1 - i] *= i / fo;
+  }
   let peak = 0; for (const v of d) peak = Math.max(peak, Math.abs(v));
-  const th = peak * 0.02; let a = 0, b = d.length - 1; while (a < b && Math.abs(d[a]) < th) a++; while (b > a && Math.abs(d[b]) < th) b--;
-  a = Math.max(0, a - Math.round(SR * 0.01)); b = Math.min(d.length - 1, b + Math.round(SR * 0.06)); d = d.slice(a, b + 1);
+  if (!cut) {
+    const th = peak * 0.02; let a = 0, b = d.length - 1; while (a < b && Math.abs(d[a]) < th) a++; while (b > a && Math.abs(d[b]) < th) b--;
+    a = Math.max(0, a - Math.round(SR * 0.01)); b = Math.min(d.length - 1, b + Math.round(SR * 0.06)); d = d.slice(a, b + 1);
+  }
   const g = 0.9 / peak, n = d.length, ab = new ArrayBuffer(44 + n * 2), dv = new DataView(ab);
   const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
   ws(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);

@@ -77,7 +77,7 @@ await shot('01-title');
 await click(612, 231); check(await ev('ER.state') === 'brief', 'кнопка «Играть» → объяснение тренера');
 await shot('02-brief');
 const ai = await ev('ER.audioInfo()');
-check(ai && Object.keys(ai).filter((k) => k.startsWith('v_')).length === 12 && Object.entries(ai).filter(([k]) => k.startsWith('v_')).every(([, v]) => v.nan === 0 && v.peak > 0.2), '6 голосов × 2 дубля синтезированы без сбоев');
+check(ai && Object.keys(ai).filter((k) => k.startsWith('v_')).length === 8 && Object.entries(ai).filter(([k]) => k.startsWith('v_')).every(([, v]) => v.nan === 0 && v.peak > 0.2), '4 голоса × 2 дубля синтезированы без сбоев');
 await click(707, 356); check(await ev('ER.state') === 'set' && await ev('ER.R.tut') && await ev('ER.R.target') === 4, '«Понял, жмём» → обучающий подход 40 кг × 4');
 await ev('ER.step(0.9)'); await shot('03-set-start');
 let r; let n = 0;
@@ -139,19 +139,20 @@ await ev('ER.go("title"); ER.step(0.1)'); await shot('20-title-disguise');
 // 4. Экран «Звуки»: послушать и выключить вариант
 await click(106, 30); check(await ev('ER.state') === 'sounds', 'кнопка «Звуки» → экран вариантов');
 await click(120, 103); await ev('ER.step(0.2)'); await shot('21-sounds');
-await click(252, 103); check(await ev('ER.S.voiceOff.op') === true, 'галочка выключает вариант «Оп!»');
-await click(252, 103); check(!(await ev('ER.S.voiceOff.op')), 'повторный тап включает обратно');
+await click(252, 103); check(await ev('ER.S.voiceOff.ooop') === true, 'галочка выключает вариант «Оооп!»');
+await click(252, 103); check(!(await ev('ER.S.voiceOff.ooop')), 'повторный тап включает обратно');
 
-// 5. Прокачанный герой и мотиватор: в дожиме выбегает качок, усталость в ноль, штанга уходит наверх
+// 5. Прокачанный герой и мотиватор: только в дожиме, штанга гарантированно уходит наверх, силы не восстанавливаются
 await ev('ER.forceCall(false)');
 await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.S.cans = 200; ER.startSet(110, 6, false)');
 await ev(REP); await ev('ER.hold(true); ER.step(0.3)'); await shot('22-buff-set'); await ev('ER.hold(false); ER.step(0.6)');
+await click(705, 29); check(await ev('ER.R.mode') === 'lift' && await ev('ER.S.cans') === 200, 'вне дожима кнопки «Мотивация» нет');
 n = 0; do { r = await rep(); n++; } while (r.mode === 'lift' && n < 30);
 check(r.mode === 'push', 'тяжёлый подход дошёл до дожима');
-await click(705, 29); check(await ev('ER.R.mode') === 'motiv' && await ev('ER.S.cans') === 150, 'кнопка «Мотивация» за 50 банок → выбегает качок');
+await click(705, 29); check(await ev('ER.R.mode') === 'motiv' && await ev('ER.S.cans') === 150, 'в дожиме «Мотивация» за 50 банок → выбегает качок');
 await ev('ER.step(1.0)'); await shot('23-bro');
 await ev('ER.step(1.4)'); r = await ev('({ mode: ER.R.mode, fat: ER.R.fat, legend: ER.R.legend, bro: !!ER.R.bro })');
-check((r.mode === 'lift' || r.mode === 'ask') && r.fat === 0 && r.legend === 1 && r.bro, 'мотивация: дожим гарантирован, усталость в ноль, качок ещё позирует (' + JSON.stringify(r) + ')');
+check((r.mode === 'lift' || r.mode === 'ask') && r.fat > 0.9 && r.legend === 1 && r.bro, 'мотивация: дожим гарантирован, силы не восстановлены (' + JSON.stringify(r) + ')');
 await ev('ER.step(0.5)'); await shot('24-bro-after');
 await ev('ER.go("title"); ER.step(0.1)'); await shot('25-buff-title');
 
@@ -162,6 +163,11 @@ check(info.music && info.music.dur > 20, 'музыка зала посчитан
 const off = Object.entries(loud).filter(([k, v]) => k !== 'thud' && Math.abs(v) > 1.5);
 log('  громкость относительно цели, дБ:', Object.entries(loud).map(([k, v]) => k + ' ' + v).join(', '));
 check(off.length === 0, 'все звуки одной громкости (±1,5 дБ)' + (off.length ? ': ' + off.map(([k, v]) => k + ' ' + v).join(', ') : ''));
+// голоса героя: ни один не начался, пока не доиграл прежний
+const hl = (await ev('ER.heroLog()')).sort((a, b) => a[0] - b[0]);
+const overl = hl.filter((x, i) => i > 0 && x[0] < hl[i - 1][1] - 0.001).length;
+check(hl.length > 0 && overl === 0, 'звуки героя не накладываются (' + hl.length + ' звуков, наложений ' + overl + ')');
+if (overl) log('  наложения:', JSON.stringify(hl.filter((x, i) => i > 0 && x[0] < hl[i - 1][1] - 0.001).map((x) => x.map((v) => +v.toFixed(3)))), ' всё:', JSON.stringify(hl.map((x) => x.map((v) => +v.toFixed(2)))));
 
 log('\nОшибки страницы: ' + (errors.length ? '\n' + errors.join('\n') : 'нет'));
 log('Снимки: ' + OUT);
