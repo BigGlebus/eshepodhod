@@ -167,7 +167,9 @@ check(off.length === 0, 'все звуки одной громкости (±1,5 
 const hl = (await ev('ER.heroLog()')).sort((a, b) => a[0] - b[0]);
 const overl = hl.filter((x, i) => i > 0 && x[0] < hl[i - 1][1] - 0.001).length;
 check(hl.length > 0 && overl === 0, 'звуки героя не накладываются (' + hl.length + ' звуков, наложений ' + overl + ')');
-if (overl) log('  наложения:', JSON.stringify(hl.filter((x, i) => i > 0 && x[0] < hl[i - 1][1] - 0.001).map((x) => x.map((v) => +v.toFixed(3)))), ' всё:', JSON.stringify(hl.map((x) => x.map((v) => +v.toFixed(2)))));
+const fmt = (x) => [+x[0].toFixed(3), +x[1].toFixed(3), x[2]];
+if (overl) log('  журнал по порядку:', JSON.stringify((await ev('ER.heroLog()')).map(fmt)));
+if (overl) log('  наложения:', JSON.stringify(hl.map((x, i) => i > 0 && x[0] < hl[i - 1][1] - 0.001 ? [fmt(hl[i - 1]), fmt(x)] : null).filter(Boolean)));
 
 log('\nОшибки страницы: ' + (errors.length ? '\n' + errors.join('\n') : 'нет'));
 log('Снимки: ' + OUT);

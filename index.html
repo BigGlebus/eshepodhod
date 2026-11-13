@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v5';
+const APP_VERSION = 'v6';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -86,7 +86,7 @@ const NPC = {
   girl: { build: 0.35, top: '#3FA88A', pants: '#2F3A55', hair: 'pony', hairC: '#6B3E26' },
   blogger: { build: 0.8, type: 'tee', top: '#7C5CC4', pants: '#2C3552', hair: 'buzz', hairC: '#C9A14A' },
   galya: { build: 1.6, type: 'robe', top: '#5C86C4', pants: '#5C86C4', shoe: '#3B3F47', hair: 'kerchief', hairC: '#C8433A', belly: true },
-  bro: { build: 3.6, skin: '#8A5A3C', top: '#8A5A3C', pants: '#2B2F3A', shoe: '#F4F2EC', hair: 'bald', shirtless: true, shorts: true },
+  bro: { build: 4.3, skin: '#7E5136', top: '#7E5136', pants: '#1E1F24', shoe: '#2B2F3A', hair: 'bald', shirtless: true, shorts: true, traps: true, veins: true, belt: true, wraps: true, ripped: true },
   valera: { build: 1.6, type: 'jacket', top: '#2E56A8', pants: '#2E56A8', stripes: true, hair: 'cap', hairC: '#C8433A', mustache: true, whistle: true, belly: true },
 };
 const BARKS = {
@@ -243,6 +243,17 @@ function face(c, x, y, r, mood) {
       else { c.beginPath(); c.ellipse(x, y + r * 0.58, r * (mood === 'shock' ? 0.15 : 0.1), r * (mood === 'shock' ? 0.19 : 0.13), 0, 0, TAU); c.fillStyle = '#5A2320'; c.fill(); c.stroke(); }
       if (mood !== 'shock') { sweat(x - r * 1.1, y - r * 0.3, r * 0.17); sweat(x + r * 1.15, y - r * 0.5, r * 0.14); }
       break; }
+    case 'rage': {   // ярость: злые щёлочки глаз, сведённые брови, вены, квадратный орущий рот
+      for (const ex2 of [L, R]) { c.beginPath(); c.ellipse(ex2, ey + r * 0.03, r * 0.15, r * 0.075, 0, 0, TAU); c.fillStyle = '#FFFFFF'; c.fill(); c.stroke(); dot(ex2 + (ex2 < x ? r * 0.04 : -r * 0.04), ey + r * 0.03, r * 0.05); }
+      c.lineWidth = lw * 1.6; ln(L - r * 0.24, ey - r * 0.32, L + r * 0.16, ey - r * 0.1); ln(R - r * 0.16, ey - r * 0.1, R + r * 0.24, ey - r * 0.32); c.lineWidth = lw;
+      ln(x - r * 0.05, ey - r * 0.18, x - r * 0.09, ey - r * 0.36); ln(x + r * 0.05, ey - r * 0.18, x + r * 0.09, ey - r * 0.36);
+      nose();
+      rrPath(c, x - r * 0.34, y + r * 0.34, r * 0.68, r * 0.5, r * 0.14); c.fillStyle = '#4A1512'; c.fill(); c.stroke();
+      c.save(); rrPath(c, x - r * 0.34, y + r * 0.34, r * 0.68, r * 0.5, r * 0.14); c.clip();
+      c.fillStyle = '#FFFFFF'; c.fillRect(x - r * 0.34, y + r * 0.34, r * 0.68, r * 0.12); c.fillRect(x - r * 0.34, y + r * 0.72, r * 0.68, r * 0.12);
+      c.fillStyle = '#D9555B'; c.beginPath(); c.ellipse(x, y + r * 0.66, r * 0.16, r * 0.07, 0, 0, TAU); c.fill(); c.restore();
+      vein(x + r * 0.4, y - r * 0.84, r * 0.32); vein(x - r * 0.5, y - r * 0.8, r * 0.28);
+      break; }
     case 'shout':
       c.beginPath(); c.arc(L, ey + r * 0.04, r * 0.12, 1.1 * Math.PI, 1.9 * Math.PI); c.stroke();
       c.beginPath(); c.arc(R, ey + r * 0.04, r * 0.12, 1.1 * Math.PI, 1.9 * Math.PI); c.stroke();
@@ -282,6 +293,12 @@ function head(c, x, y, r, o = {}) {
     c.fillStyle = '#FFFFFF'; for (const [dx, dy] of [[-0.5, -0.7], [0, -0.85], [0.45, -0.62], [-0.2, -0.45], [0.25, -0.38]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * 0.06, 0, TAU); c.fill(); }
   }
   if (hs === 'bald') { c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(x - r * 0.35, y - r * 0.62, r * 0.2, r * 0.1, -0.5, 0, TAU); c.fill(); }
+  if (o.beard) {   // борода: подбородок, баки и полоса над губой
+    c.fillStyle = 'rgba(35,22,14,.92)';
+    c.beginPath(); c.ellipse(x, y + r * 0.6, r * 0.8, r * 0.52, 0, 0, Math.PI); c.closePath(); c.fill();
+    for (const sg of [-1, 1]) { c.beginPath(); c.ellipse(x + sg * r * 0.8, y + r * 0.2, r * 0.14, r * 0.42, 0, 0, TAU); c.fill(); }
+    c.beginPath(); c.ellipse(x, y + r * 0.33, r * 0.36, r * 0.1, 0, 0, TAU); c.fill();
+  }
   if (o.band) { c.fillStyle = P.band; c.fillRect(x - r, y - r * 0.56, r * 2, r * 0.25); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x - r, y - r * 0.53, r * 2, r * 0.05); }
   c.restore();
   if (hs === 'cap') blob(c, [{ k: 'ell', x, y: y - r * 0.4, rx: r * 0.95, ry: r * 0.17, c: shade(o.hairC || P.red, -0.15) }], Math.min(ol, 2.5));
@@ -329,6 +346,7 @@ function person(c, x, y, s, o = {}) {
   if (o.stripes && !sil) { c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.2; c.lineCap = 'round'; for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(sg * (hip + lw * 0.32), HIP + 10); c.lineTo(sg * (hip + 1 + lw * 0.32), -16); c.stroke(); } c.restore(); }
   const neck = { k: 'line', p: [[0, SH - 4], [0, SH - 16]], w: 12 + b * 2.5, c: skin };
   const bodyParts = [neck];
+  if (o.traps) bodyParts.push({ k: 'poly', p: [[-sw * 0.62, SH - 2], [-sw * 0.22, SH - 24], [sw * 0.22, SH - 24], [sw * 0.62, SH - 2]], c: skin });   // трапеции-горы
   if (type === 'robe') bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 1.12, -24], [-sw * 1.12, -24]], c: top });
   else bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 0.76, HIP + 2], [-sw * 0.76, HIP + 2]], c: type === 'tank' ? skin : top });
   if (o.belly && type !== 'tank') bodyParts.push({ k: 'ell', x: 0, y: -96, rx: sw * 0.9, ry: 21, c: top });
@@ -341,14 +359,23 @@ function person(c, x, y, s, o = {}) {
   if (!sil) {
     c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(27,28,34,.35)'; c.lineWidth = 2;
     if (b >= 1.4 && type === 'tank') { c.beginPath(); c.arc(-sw * 0.33, SH + 16, sw * 0.32, 0.2 * Math.PI, 0.85 * Math.PI); c.stroke(); c.beginPath(); c.arc(sw * 0.33, SH + 16, sw * 0.32, 0.15 * Math.PI, 0.8 * Math.PI); c.stroke(); }
-    if (o.shirtless) { c.beginPath(); c.moveTo(0, SH + 30); c.lineTo(0, HIP - 6); for (const yy of [SH + 40, SH + 52]) { c.moveTo(-sw * 0.3, yy); c.lineTo(sw * 0.3, yy); } c.stroke(); }
+    if (o.shirtless) {
+      c.beginPath(); c.moveTo(0, SH + 30); c.lineTo(0, HIP - 6);
+      for (const yy of o.ripped ? [SH + 36, SH + 46, SH + 56] : [SH + 40, SH + 52]) { c.moveTo(-sw * 0.3, yy); c.lineTo(sw * 0.3, yy); }
+      if (o.ripped) for (const sg of [-1, 1]) for (const yy of [SH + 24, SH + 32, SH + 40]) { c.moveTo(sg * sw * 0.64, yy); c.lineTo(sg * sw * 0.48, yy + 6); }   // зубчатые мышцы
+      c.stroke();
+    }
     if (type === 'jacket') { c.strokeStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(0, SH); c.lineTo(0, HIP + 2); c.stroke(); }
     if (type === 'robe') { c.fillStyle = '#FFFFFF'; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(0, SH + 14 + i * 22, 2.4, 0, TAU); c.fill(); } c.strokeStyle = 'rgba(27,28,34,.4)'; rrPath(c, sw * 0.25, -78, sw * 0.5, 18, 3); c.stroke(); }
     if (o.chain) { c.strokeStyle = '#E8BC3A'; c.lineWidth = 3; c.beginPath(); c.arc(0, SH - 8, 13, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke(); }
     if (o.whistle) { c.strokeStyle = '#E8E8E8'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-7, SH - 6); c.lineTo(0, SH + 22); c.lineTo(7, SH - 6); c.stroke(); blob(c, [{ k: 'rr', x: -5, y: SH + 20, w: 12, h: 7, r: 3, c: '#C9CED4' }], 1.5); }
     c.restore();
   }
-  head(c, 0, -168, 22, { mood: o.mood, hair: o.hair, hairC: o.hairC, band: o.band, mustache: o.mustache, shades: o.shades, sil, skin: sil || o.skin, ol: OLW });
+  if (o.belt && !sil) {   // атлетический пояс
+    blob(c, [{ k: 'rr', x: -sw * 0.8, y: HIP - 16, w: sw * 1.6, h: 20, r: 4, c: '#1E1F24' }], OLW);
+    box(c, -9, HIP - 13, 18, 14, 3, '#C9A14A', INK, 1.6); c.fillStyle = '#1E1F24'; c.fillRect(-4, HIP - 9, 8, 6);
+  }
+  head(c, 0, -168, 22, { mood: o.mood, hair: o.hair, hairC: o.hairC, band: o.band, mustache: o.mustache, shades: o.shades, beard: o.beard, sil, skin: sil || o.skin, ol: OLW });
   const A = armPose(o.arms || 'down', sw);
   if (o.arms === 'mop' && !sil) {
     blob(c, [{ k: 'line', p: [[sw + 30, -178], [sw + 8, -4]], w: 5, c: '#B08350' }], 2);
@@ -364,6 +391,20 @@ function person(c, x, y, s, o = {}) {
       blob(c, [{ k: 'line', p: sp, w: aw + 3, c: top }], 2);
       if (type === 'jacket') { c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.moveTo(sp[0][0] + 3, sp[0][1]); for (let i = 1; i < sp.length; i++) c.lineTo(sp[i][0] + 3, sp[i][1]); c.stroke(); c.restore(); }
     }
+  }
+  if (!sil && o.veins) {   // вены на руках и груди
+    c.save(); c.strokeStyle = shade(skin, -0.35); c.lineWidth = 1.7; c.lineCap = 'round';
+    for (const arm of [A.L, A.R]) {
+      const m1 = lp(arm[0], arm[1], 0.3), m2 = lp(arm[0], arm[1], 0.85), f1 = lp(arm[1], arm[2], 0.15), f2 = lp(arm[1], arm[2], 0.7);
+      c.beginPath(); c.moveTo(m1[0], m1[1]); c.quadraticCurveTo((m1[0] + m2[0]) / 2 + 4, (m1[1] + m2[1]) / 2 - 4, m2[0], m2[1]);
+      c.moveTo(f1[0] - 2, f1[1]); c.quadraticCurveTo((f1[0] + f2[0]) / 2 - 4, (f1[1] + f2[1]) / 2, f2[0], f2[1]); c.stroke();
+    }
+    c.beginPath(); c.moveTo(-sw * 0.2, SH - 6); c.quadraticCurveTo(-sw * 0.28, SH + 4, -sw * 0.18, SH + 14); c.stroke();
+    c.restore();
+  }
+  if (!sil && o.wraps) for (const arm of [A.L, A.R]) {   // бинты на запястьях
+    const w0 = lp(arm[1], arm[2], 0.74), ang = Math.atan2(arm[2][1] - arm[1][1], arm[2][0] - arm[1][0]);
+    c.save(); c.translate(w0[0], w0[1]); c.rotate(ang); box(c, -6, -aw * 0.58, 12, aw * 1.16, 3, '#C8433A', INK, 1.6); c.fillStyle = 'rgba(255,255,255,.7)'; c.fillRect(-1, -aw * 0.58, 2, aw * 1.16); c.restore();
   }
   if (!sil && o.arms === 'phone') { const [hx, hy] = A.R[2]; blob(c, [{ k: 'rr', x: hx - 8, y: hy - 26, w: 16, h: 28, r: 3, c: '#24272E' }], 2); c.fillStyle = '#9FD0FF'; c.fillRect(hx - 5, hy - 23, 10, 20); c.fillStyle = o.rec ? P.red : '#55606C'; c.beginPath(); c.arc(hx, hy - 17, 2.6, 0, TAU); c.fill(); }
   c.restore();
@@ -866,7 +907,12 @@ function makeSounds() {
     for (let i = 0; i < n; i++) { const t = i / sr, on = t < 0.42 || (t > 0.62 && t < 1.04); if (!on) { d[i] = 0; continue; }
       const f = Math.floor(t * 25) % 2 ? 1320 : 1060, w = Math.sin(TAU * f * t), tl = t < 0.42 ? t : t - 0.62; d[i] = (w + 0.3 * Math.sin(3 * TAU * f * t)) * Math.min(1, tl / 0.01) * Math.min(1, (0.42 - tl) / 0.02) * 0.4; }
   });
-  for (const k of ['clank', 'thud', 'tick', 'bulk', 'cheer', 'whistle', 'fart', 'ring']) normBuf(A.buf[k]);
+  // приземление мотиватора: низкий удар + треск
+  A.buf.slam = synth(0.6, (d, n, sr) => {
+    let ph = 0, lp1 = 0;
+    for (let i = 0; i < n; i++) { const t = i / sr, nz = Math.random() * 2 - 1; ph += (68 - 34 * Math.min(1, t / 0.25)) / sr; lp1 += (nz - lp1) * 0.12; d[i] = Math.sin(TAU * ph) * Math.exp(-6 * t) * 0.9 + lp1 * 1.4 * Math.exp(-9 * t) + (t < 0.03 ? nz * (1 - t / 0.03) * 0.8 : 0); }
+  });
+  for (const k of ['clank', 'thud', 'tick', 'bulk', 'cheer', 'whistle', 'fart', 'ring', 'slam']) normBuf(A.buf[k]);
 }
 // Эхо небольшого зала: голос перестаёт звучать «в вакууме».
 async function addRoom(buf, wet = 0.2) {
@@ -962,17 +1008,17 @@ function heroPlay(name, rate = 1, queue = false) {
     const s = A.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate; s.connect(A.master); s.start(when);
     const list = A.heroSrcs || (A.heroSrcs = []); list.push(s); s.onended = () => { const i = list.indexOf(s); if (i >= 0) list.splice(i, 1); };
     A.heroSrc = s; A.heroUntil = when + (b.duration - (b.tail || 0)) / rate;
-    (A.heroLog || (A.heroLog = [])).push([when, A.heroUntil]); if (A.heroLog.length > 200) A.heroLog.shift();
+    (A.heroLog || (A.heroLog = [])).push([when, A.heroUntil, name]); if (A.heroLog.length > 200) A.heroLog.shift();
     return true;
   } catch (e) { return false; }
 }
 function heroStop() {
-  if (!A || !A.heroSrcs || !A.heroSrcs.length) return;
+  if (!A) return;
   const now = A.ctx.currentTime;
-  for (const s of A.heroSrcs.splice(0)) { try { s.stop(); } catch (e) { /* уже */ } }   // и звучащий голос, и очередь за ним
+  for (const s of (A.heroSrcs || []).splice(0)) { try { s.stop(); } catch (e) { /* уже */ } }   // и звучащий голос, и очередь за ним
   A.heroSrc = null; A.heroUntil = 0;
-  // в журнале оборванный звук заканчивается сейчас; ещё не начавшиеся (в очереди) — тоже не звучали
-  if (A.heroLog) for (const it of A.heroLog) if (it[1] > now) it[1] = Math.max(it[0], now);
+  // в журнале оборванный звук заканчивается сейчас, а не успевшие начаться (из очереди) вовсе не звучали
+  if (A.heroLog) A.heroLog = A.heroLog.filter((it) => it[0] <= now).map((it) => { if (it[1] > now) it[1] = now; return it; });
 }
 // Голос по степени усталости; варианты, выключенные на экране «Звуки», не звучат.
 let lastVoice = '';
@@ -1076,14 +1122,15 @@ function callSpot() {
 }
 // Мотивация — только в дожиме: выбегает здоровенный качок, кричит, и штанга гарантированно уходит наверх.
 // Силы она не восстанавливает: после дожима усталость такая же, как после обычного дожатого повтора.
-const BRO_FREEZE = 2.2;
+const BRO_FREEZE = 2.2, BRO_LAND = 0.45;   // штанга уходит наверх за 2,2 с; приземление через 0,45 с
 function callBro() {
   if (!R || R.broUsed || S.cans < BRO_PRICE || R.mode !== 'push') return;
   S.cans -= BRO_PRICE; save();
   const clip = A && A.buf.bro ? A.buf.bro.duration : 3;
-  R.broUsed = true; R.bro = { t: 0, from: R.mode, fat0: R.fat, pos0: R.pos, dur: Math.max(BRO_FREEZE + 0.8, clip + 0.4) };
+  R.broUsed = true; R.bro = { t: 0, from: R.mode, fat0: R.fat, pos0: R.pos, dur: Math.max(BRO_FREEZE + 0.8, BRO_LAND + clip + 0.35) };
   R.mode = 'motiv'; R.bark = null; R.pressing = false;
-  if (A) A.broSrc = play('bro');
+  // крик начинается в момент приземления
+  if (A && A.buf.bro) { try { const s = A.ctx.createBufferSource(); s.buffer = A.buf.bro; s.connect(A.master); s.start(A.ctx.currentTime + BRO_LAND); A.broSrc = s; } catch (e) { /* без крика */ } }
 }
 function rackBar() { if (!R || R.mode !== 'lift') return; R.mode = 'racked'; R.rackT = 0; R.rackFrom = R.pos; R.bark = null; }
 function crash() {
@@ -1135,7 +1182,12 @@ function updateSet(dt) {
   if (R.barkQ > 0) { R.barkQ -= dt; if (R.barkQ <= 0 && R.mode === 'lift') bark(S.disguise[S.gym] ? 'disguise' : 'start'); }
   R.fx = R.fx.filter((f) => (f.t += dt) < f.life);
   R.taps = R.taps.filter((f) => (f.t += dt) < 0.45);
-  if (R.bro) { R.bro.t += dt; if (R.bro.t >= R.bro.dur) R.bro = null; }
+  if (R.bro) {
+    const t0 = R.bro.t; R.bro.t += dt;
+    if (t0 < BRO_LAND && R.bro.t >= BRO_LAND) { play('slam'); R.shake = Math.max(R.shake, 0.45); }   // приземление
+    if (t0 < BRO_LAND + 1.95 && R.bro.t >= BRO_LAND + 1.95) R.shake = Math.max(R.shake, 0.25);        // «LIGHTWEIGHT!»
+    if (R.bro.t >= R.bro.dur) R.bro = null;
+  }
   // звонок длится весь дожим и ещё полторы секунды после — потом сосед кладёт трубку
   if (R.call) {
     R.call.t += dt;
@@ -1324,8 +1376,8 @@ function drawSetHud() {
     if (R.call.t < 0.8) { const k = Math.sin(R.call.t * 40) * 3; textOl(g, 'дзынь!', sx + 70 + k, 108, font(700, 24, FF.hand), P.yellow, 5, 'center'); }
     else { const lines = BARKS[GYMS[S.gym].spot].call; bubble(g, sx + 30, 116, lines[Math.floor((R.call.t - 0.8) / 2.4) % lines.length], { side: 'right', font: font(700, 14, FF.body) }); }
   } else if (R.bark) bubble(g, spotterX() + 30, 116, R.bark.text, { side: 'right', font: font(700, R.bark.text === 'ЕЩЁ РАЗОК!' ? 18 : 14, FF.body) });
-  // надписи совпадают с записью: «Yeah buddy» — первые ~1,5 с, «Lightweight» — с ~1,9 с
-  if (R.bro && R.bro.t > 0.3 && R.bro.t < R.bro.dur - 0.4) bubble(g, broX() + 34, 100, R.bro.t < 1.75 ? 'YEAH BUDDY!' : 'LIGHTWEIGHT!', { side: 'right', font: font(700, 17, FF.head), bg: P.yellow });
+  // запись стартует в момент приземления: «Yeah buddy» — первые ~1,5 с, «Lightweight» — с ~1,9 с
+  if (R.bro && R.bro.t > BRO_LAND && R.bro.t < R.bro.dur - 0.4) shoutBubble(broX(), 46, R.bro.t < BRO_LAND + 1.75 ? 'YEAH BUDDY!' : 'LIGHTWEIGHT!');
   for (const f of R.fx) { const k = f.t / f.life; g.save(); g.globalAlpha = 1 - Math.max(0, k - 0.6) / 0.4; textOl(g, f.text, f.x, f.y - k * 40, font(700, f.size, FF.head), f.col, 6, 'center'); g.restore(); }
   if (R.mode === 'ask') drawAsk();
 }
@@ -1356,22 +1408,48 @@ function broBtn(pushing) {
   g.restore();
   if (can) hot(x, y, w, h, callBro);
 }
-// Качок-мотиватор: выбегает справа, позирует и кричит, пока играет запись, потом убегает.
-const BRO_X = 616;
+// Качок-мотиватор: прыгает в кадр сверху справа и приземляется с ударом (тряска, трещины, пыль),
+// стоит в огненных лучах и орёт, пока играет запись, потом убегает.
+const BRO_X = 612;
+const CRACKS = [[-28, [[-14, -4], [-30, 1], [-46, -5], [-64, -1]]], [-12, [[-6, 5], [-20, 3]]], [22, [[12, -5], [28, -1], [42, -7], [60, -3]]], [40, [[8, 5], [22, 3]]]];
 function broX() {
-  const b = R.bro, inK = easeOut(b.t / 0.5), outK = b.t > b.dur - 0.6 ? Math.pow((b.t - (b.dur - 0.6)) / 0.6, 2) : 0;
-  return lerp(W + 150, BRO_X, inK) + outK * 300;
+  const b = R.bro, inK = easeOut(Math.min(1, b.t / BRO_LAND)), outK = b.t > b.dur - 0.6 ? Math.pow((b.t - (b.dur - 0.6)) / 0.6, 2) : 0;
+  return lerp(W + 170, BRO_X, inK) + outK * 320;
 }
 function drawBro() {
-  const b = R.bro, x = broX(), run = b.t < 0.5 || b.t > b.dur - 0.6;
-  const bob = run ? -Math.abs(Math.sin(b.t * 16)) * 8 : Math.sin(b.t * 5) * 2;
-  if (!run) {
-    g.save(); g.translate(x, 210); g.rotate(b.t * 0.6); g.globalAlpha = 0.28;
-    for (let i = 0; i < 12; i++) { g.rotate(TAU / 12); g.fillStyle = i % 2 ? '#FFE27A' : '#FFC93A'; g.beginPath(); g.moveTo(0, 0); g.lineTo(230, -26); g.lineTo(230, 26); g.closePath(); g.fill(); }
+  const b = R.bro, x = broX(), landed = b.t >= BRO_LAND, leaving = b.t > b.dur - 0.6;
+  let y;
+  if (!landed) { const k = b.t / BRO_LAND; y = -170 * (1 - k * k); }                       // падает сверху
+  else if (b.t < BRO_LAND + 0.2) y = 8 * Math.sin(Math.PI * (b.t - BRO_LAND) / 0.2);      // присел от удара
+  else if (leaving) y = -Math.abs(Math.sin(b.t * 16)) * 8;
+  else y = Math.sin(b.t * 5) * 2;
+  if (landed && !leaving) {
+    const a = Math.min(1, (b.t - BRO_LAND) / 0.25);
+    g.save(); g.globalAlpha = 0.45 * a;
+    const gr = g.createRadialGradient(x, 200, 20, x, 200, 270); gr.addColorStop(0, 'rgba(255,90,30,.95)'); gr.addColorStop(1, 'rgba(120,10,0,0)'); g.fillStyle = gr; g.fillRect(x - 290, -70, 580, 460);
+    g.translate(x, 200); g.rotate(b.t * 0.9);
+    for (let i = 0; i < 14; i++) { g.rotate(TAU / 14); g.fillStyle = i % 2 ? '#FF6A1A' : '#FFB020'; g.beginPath(); g.moveTo(0, 0); g.lineTo(270, -22); g.lineTo(270, 22); g.closePath(); g.fill(); }
     g.restore();
   }
-  g.save(); g.translate(x - BRO_X, bob);
-  layer('bro-' + (run ? 'run' : 'flex'), BRO_X - 140, 40, 280, 350, (c) => person(c, BRO_X, 388, WS, Object.assign({}, NPC.bro, { arms: run ? 'down' : 'flex', mood: 'shout' })));
+  if (landed) {
+    const fade = leaving ? Math.max(0, 1 - (b.t - (b.dur - 0.6)) / 0.6) : 1;
+    g.save(); g.globalAlpha = 0.85 * fade; g.strokeStyle = '#141416'; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const [dx, pts] of CRACKS) { g.beginPath(); g.moveTo(BRO_X + dx, 384); for (const [px, py] of pts) g.lineTo(BRO_X + dx + px, 384 + py); g.stroke(); }
+    g.restore();
+    const dk = (b.t - BRO_LAND) / 0.8;
+    if (dk < 1) { g.save(); g.globalAlpha = 0.6 * (1 - dk); g.fillStyle = '#B9B3A6'; for (const [dx, r0] of [[-95, 26], [-52, 32], [52, 30], [96, 24], [0, 20]]) { g.beginPath(); g.arc(BRO_X + dx * (1 + dk * 0.8), 374 - dk * 16, r0 * (0.6 + dk), 0, TAU); g.fill(); } g.restore(); }
+  }
+  g.save(); g.translate(x - BRO_X, y);
+  layer('bro-' + (leaving ? 'run' : 'flex'), BRO_X - 175, 20, 350, 370, (c) => person(c, BRO_X, 388, WS, Object.assign({}, NPC.bro, { arms: leaving ? 'down' : 'flex', mood: 'rage' })));
+  g.restore();
+}
+// Рваная «крик»-плашка над головой мотиватора.
+function shoutBubble(x, y, s) {
+  g.save(); g.translate(x + (Math.random() - 0.5) * 3, y + (Math.random() - 0.5) * 3);
+  g.font = font(700, 26, FF.head); const w = g.measureText(s).width / 2 + 28, h = 28;
+  g.beginPath(); for (let i = 0; i <= 22; i++) { const a = i / 22 * TAU, k = i % 2 ? 1 : 1.24; const px = Math.cos(a) * w * k, py = Math.sin(a) * h * k; if (i) g.lineTo(px, py); else g.moveTo(px, py); } g.closePath();
+  g.fillStyle = P.red; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.lineJoin = 'miter'; g.stroke();
+  textOl(g, s, 0, 2, font(700, 26, FF.head), P.yellow, 6, 'center', 'middle');
   g.restore();
 }
 function drawCrashWorld(t) {
