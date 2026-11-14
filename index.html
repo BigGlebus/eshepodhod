@@ -728,6 +728,14 @@ function drawLyingBack(c, Hn, b, L = OUTFITS[0]) {
   blob(c, [{ k: 'line', p: [fs, fe, fh], w: aw, c: L.sleeves ? shade(L.sleeves, -0.15) : P.skinD }, { k: 'ell', x: fh[0], y: fh[1], rx: aw * 0.62, ry: aw * 0.62, c: L.gloves ? '#16171B' : P.skinD }]);
 }
 // Скамья и неподвижное тело — рисуются один раз в картинку.
+// Наколенник сбоку: манжета по сгибу ноги, края срезаны поперёк, а не круглые.
+function kneeSleeve(c, p, w, col) {
+  c.save(); c.lineJoin = 'round'; c.lineCap = 'butt';
+  const path = () => { c.beginPath(); c.moveTo(p[0][0], p[0][1]); c.lineTo(p[1][0], p[1][1]); c.lineTo(p[2][0], p[2][1]); };
+  path(); c.strokeStyle = INK; c.lineWidth = w + 3.6; c.stroke();
+  path(); c.strokeStyle = col; c.lineWidth = w; c.stroke();
+  c.restore();
+}
 function drawLyingBody(c, b, L = OUTFITS[0]) {
   const d = chestD(b), lw = legW(b);
   const hipP = [12, PAD - lw * 0.55], knee = [52, PAD - lw * 0.45], ankle = [56, -9];
@@ -735,16 +743,16 @@ function drawLyingBody(c, b, L = OUTFITS[0]) {
   const fH = [hipP[0] - 6, hipP[1]], fK = [knee[0] - 7, knee[1]], fA = [ankle[0] - 8, ankle[1]];
   const far = [{ k: 'line', p: [fH, fK, fA], w: lw * 0.95, c: legD }, { k: 'ell', x: ankle[0] - 1, y: -5, rx: 11 + b, ry: 6, c: '#BFC3C9' }];
   if (L.shorts) far.push({ k: 'line', p: [fH, lp(fH, fK, 0.55)], w: lw * 0.95 + 3, c: shade(L.pants, -0.3) });
-  if (L.knees) far.push({ k: 'line', p: [lp(fH, fK, 0.84), lp(fK, fA, 0.16)], w: lw * 0.95 + 2, c: '#121317' });
   blob(c, far);
+  if (L.knees) kneeSleeve(c, [lp(fH, fK, 0.6), fK, lp(fK, fA, 0.4)], lw * 0.95 + 2, '#121317');
   blob(c, [{ k: 'rr', x: -86, y: -31, w: 7, h: 30, r: 2, c: P.iron }, { k: 'rr', x: 30, y: -31, w: 7, h: 30, r: 2, c: P.iron },
     { k: 'rr', x: -100, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD }, { k: 'rr', x: 16, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD },
     { k: 'rr', x: -92, y: -32, w: 134, h: 5, r: 2, c: P.iron }, { k: 'rr', x: -100, y: PAD, w: 150, h: 9, r: 4, c: P.pad }], 1.8);
   c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-96, PAD + 1.5, 142, 2);
   const near = [{ k: 'poly', p: [[2, PAD], [22, PAD], [22, PAD - d * 0.6], [2, PAD - d * 0.66]], c: L.pants }, { k: 'line', p: [hipP, knee, ankle], w: lw, c: legC }, { k: 'ell', x: ankle[0] + 7, y: -5, rx: 11 + b, ry: 6, c: P.white }];
   if (L.shorts) near.push({ k: 'line', p: [hipP, lp(hipP, knee, 0.55)], w: lw + 3, c: L.pants });
-  if (L.knees) near.push({ k: 'line', p: [lp(hipP, knee, 0.84), lp(knee, ankle, 0.16)], w: lw + 2, c: '#1E1F24' });
   blob(c, near);
+  if (L.knees) kneeSleeve(c, [lp(hipP, knee, 0.6), knee, lp(knee, ankle, 0.4)], lw + 2, '#1E1F24');   // длиннее полуширины — без ступеньки на сгибе
   if (L.stripes) {
     c.save(); c.strokeStyle = P.stripe; c.lineWidth = 1.6; c.lineCap = 'round'; c.lineJoin = 'round';
     c.beginPath(); c.moveTo(hipP[0] + 2, hipP[1] - lw * 0.4); c.lineTo(knee[0], knee[1] - lw * 0.4); c.lineTo(ankle[0] + lw * 0.4, ankle[1] - 3); c.stroke(); c.restore();
@@ -1194,7 +1202,7 @@ const FOODS = [
 ];
 const SUPPS = [
   { id: 'none', name: 'Без добавок', short: '', price: 0, plus: 'Без бонусов', minus: 'Без побочек' },
-  { id: 'bcaa', name: 'Глотнуть BCAA', short: 'BCAA', price: 15, plus: 'Сил +15%, дожим +25%', minus: 'Без побочек' },
+  { id: 'bcaa', name: 'Выпить BCAA', short: 'BCAA', price: 15, plus: 'Сил +15%, дожим +25%', minus: 'Без побочек' },
   { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 30, plus: 'Сил +15%, дожим +50%', minus: 'Судороги: с жёлтой зоны рука может замереть', bad: true },
   { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Сил +30%, дожим ×2', minus: 'Судороги; допинг-контроль может выгнать', bad: true },
 ];
