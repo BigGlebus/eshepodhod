@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v8';
+const APP_VERSION = 'v9';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -63,7 +63,7 @@ const FORCE_MUTE = QS.has('mute');
 
 /* ================= сохранение ================= */
 const SAVE_KEY = 'eshche-razok-save-v1';
-const DEF = { chest: 0, arms: 0, cans: 50, gym: 'podval', bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, muted: false, voiceOff: {}, music: true };
+const DEF = { chest: 0, arms: 0, cans: 50, gym: 'podval', bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', muted: false, voiceOff: {}, music: true };
 const fresh = () => JSON.parse(JSON.stringify(DEF));
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') return Object.assign(fresh(), s); } catch (e) { /* нет хранилища */ } return fresh(); })();
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
@@ -88,7 +88,7 @@ const NPC = {
   girl: { build: 0.35, top: '#3FA88A', pants: '#2F3A55', hair: 'pony', hairC: '#6B3E26' },
   blogger: { build: 0.8, type: 'tee', top: '#7C5CC4', pants: '#2C3552', hair: 'buzz', hairC: '#C9A14A' },
   galya: { build: 1.6, type: 'robe', top: '#5C86C4', pants: '#5C86C4', shoe: '#3B3F47', hair: 'kerchief', hairC: '#C8433A', belly: true },
-  bro: { build: 4.3, skin: '#7E5136', top: '#2F6FD6', pants: '#1E1F24', shoe: '#2B2F3A', hair: 'bald', shorts: true, shortsLen: 50, traps: true, veins: true, belt: true, wraps: true, ripped: true, stringer: true },
+  bro: { build: 4.3, skin: '#7E5136', top: '#2F6FD6', pants: '#1E1F24', shoe: '#2B2F3A', hair: 'bald', shorts: true, waistDrop: 10, traps: true, veins: true, belt: true, wraps: true, ripped: true, stringer: true },
   valera: { build: 1.6, type: 'jacket', top: '#2E56A8', pants: '#2E56A8', stripes: true, hair: 'cap', hairC: '#C8433A', mustache: true, whistle: true, belly: true },
 };
 // Варианты мотиватора: синяя майка-борцовка, рот закрыт. Какой берём — решает автор (BRO_LOOK).
@@ -363,9 +363,9 @@ function person(c, x, y, s, o = {}) {
   const sil = o.sil, OLW = sil ? 0 : (o.ol ?? OLD);
   const b = o.build ?? 1;
   const sw = 17 + b * 6.5, aw = 9.5 + b * 3.4, lw = 13 + b * 2.4, hip = 9 + b * 2.4;
-  const SH = -136, HIP = -80;
+  const SH = -136, HIP = -80 + (o.waistDrop || 0);   // waistDrop — длиннее торс, пояс и шорты ниже
   const skin = sil || o.skin || P.skin, top = sil || o.top || P.tank, pants = sil || o.pants || P.pants, shoe = sil || o.shoe || P.white;
-  const type = o.type || 'tank', legC = o.shorts ? skin : pants;
+  const type = o.type || 'tank', legC = sil || o.tights || (o.shorts ? skin : pants);
   c.save(); c.translate(x, y); c.scale(o.flip ? -s : s, s);
   // у толстых ног круглый конец уходит ниже обычной кроссовки — тогда кроссовка ниже и выше, чтобы пятка не торчала
   const shoeY = Math.max(-6, -12 + lw / 2), shoeRy = Math.max(6.5, lw * 0.36);
@@ -377,12 +377,13 @@ function person(c, x, y, s, o = {}) {
     { k: 'ell', x: hip + 5, y: shoeY, rx: lw * 0.8, ry: shoeRy, c: shoe },
   ], OLW);
   if (o.shorts) blob(c, [{ k: 'rr', x: -sw * 0.8, y: HIP - 8, w: sw * 1.6, h: o.shortsLen || 36, r: 8, c: pants }], OLW);
+  if (o.knees && !sil) for (const sg of [-1, 1]) blob(c, [{ k: 'rr', x: sg * (hip + 0.6) - lw * 0.58, y: -46, w: lw * 1.16, h: 15, r: 4, c: '#1E1F24' }], OLW);   // наколенники
   if (o.stripes && !sil) { c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.2; c.lineCap = 'round'; for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(sg * (hip + lw * 0.32), HIP + 10); c.lineTo(sg * (hip + 1 + lw * 0.32), -16); c.stroke(); } c.restore(); }
   const neck = { k: 'line', p: [[0, SH - 4], [0, SH - 16]], w: 12 + b * 2.5, c: skin };
   const bodyParts = [neck];
   if (o.traps) bodyParts.push({ k: 'poly', p: [[-sw * 0.62, SH - 2], [-sw * 0.22, SH - 24], [sw * 0.22, SH - 24], [sw * 0.62, SH - 2]], c: skin });   // трапеции-горы
   if (type === 'robe') bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 1.12, -24], [-sw * 1.12, -24]], c: top });
-  else bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 0.76, HIP + 2], [-sw * 0.76, HIP + 2]], c: type === 'tank' ? skin : top });
+  else bodyParts.push({ k: 'poly', p: [[-sw, SH - 4], [sw, SH - 4], [sw * 0.76, HIP + 2], [-sw * 0.76, HIP + 2]], c: type === 'tank' ? (sil || o.sleeves || skin) : top });
   if (o.belly && type !== 'tank') bodyParts.push({ k: 'ell', x: 0, y: -96, rx: sw * 0.9, ry: 21, c: top });
   blob(c, bodyParts, OLW);
   if (type === 'tank' && o.stringer && !o.shirtless) {   // майка-борцовка бодибилдера: тонкие лямки, глубокие проймы
@@ -432,8 +433,9 @@ function person(c, x, y, s, o = {}) {
   }
   const sleeve = type === 'tee' || type === 'jacket' || type === 'robe';
   for (const arm of [A.L, A.R]) {
-    const parts = [{ k: 'line', p: arm, w: aw, c: skin }, { k: 'ell', x: arm[2][0], y: arm[2][1], rx: aw * 0.62, ry: aw * 0.62, c: skin }];
-    if (o.arms === 'flex' || b >= 2.5) { const m = lp(arm[0], arm[1], 0.55); parts.push({ k: 'ell', x: m[0], y: m[1] - aw * (o.arms === 'flex' ? 0.45 : 0.08), rx: aw * 0.74, ry: aw * 0.6, c: skin }); }
+    const armC = sil || o.sleeves || skin, handC = sil || (o.gloves ? '#1E1F24' : skin);   // термобельё до запястья, перчатки
+    const parts = [{ k: 'line', p: arm, w: aw, c: armC }, { k: 'ell', x: arm[2][0], y: arm[2][1], rx: aw * 0.62, ry: aw * 0.62, c: handC }];
+    if (o.arms === 'flex' || b >= 2.5) { const m = lp(arm[0], arm[1], 0.55); parts.push({ k: 'ell', x: m[0], y: m[1] - aw * (o.arms === 'flex' ? 0.45 : 0.08), rx: aw * 0.74, ry: aw * 0.6, c: armC }); }
     blob(c, parts, OLW);
     if (sleeve && !sil) {
       const sp = type === 'tee' ? [arm[0], lp(arm[0], arm[1], 0.55)] : [arm[0], arm[1], lp(arm[1], arm[2], 0.72)];
@@ -459,7 +461,19 @@ function person(c, x, y, s, o = {}) {
   if (!sil && o.arms === 'phone') { const [hx, hy] = A.R[2]; blob(c, [{ k: 'rr', x: hx - 8, y: hy - 26, w: 16, h: 28, r: 3, c: '#24272E' }], 2); c.fillStyle = '#9FD0FF'; c.fillRect(hx - 5, hy - 23, 10, 20); c.fillStyle = o.rec ? P.red : '#55606C'; c.beginPath(); c.arc(hx, hy - 17, 2.6, 0, TAU); c.fill(); }
   c.restore();
 }
-const playerLook = () => ({ build: buildOf(S), stripes: true, band: true, mustache: !!S.disguise[S.gym], shades: !!S.disguise[S.gym] });
+// Костюмы героя: каждый открывается на своей стадии, новый надевается сам, сменить можно в «Костюмах».
+const OUTFITS = [
+  { id: 'dryshch', stage: 0, name: 'Майка и треники', desc: 'Белая майка, треники с лампасами, повязка на голове', top: P.tank, pants: P.pants, stripes: true, band: true },
+  { id: 'krepysh', stage: 1, name: 'Тайтсы и термобельё', desc: 'Термобельё под майку, тайтсы под шорты, повязка на голове', top: P.tank, pants: '#2E56A8', shorts: true, tights: '#24262C', sleeves: '#3A3F4A', band: true },
+  { id: 'kachok', stage: 2, name: 'Шорты и майка', desc: 'Без повязки и без лишнего — и так всё видно', top: '#A9B1BC', pants: '#2C3552', shorts: true },
+  { id: 'shkaf', stage: 3, name: 'Трико пауэрлифтера', desc: 'Трико на тонких лямках, перчатки и наколенники', top: '#C8433A', pants: '#C8433A', shorts: true, stringer: true, gloves: true, knees: true },
+];
+const outfitOpen = (o) => stageOf(buildOf(S)).i >= o.stage;
+const curOutfit = () => { const o = OUTFITS.find((x) => x.id === S.outfit); return o && outfitOpen(o) ? o : OUTFITS[0]; };
+const playerLook = () => {
+  const o = curOutfit(), disg = !!S.disguise[S.gym];
+  return { build: buildOf(S), top: o.top, pants: o.pants, stripes: o.stripes, band: o.band, shorts: o.shorts, tights: o.tights, sleeves: o.sleeves, stringer: o.stringer, gloves: o.gloves, knees: o.knees, mustache: disg, shades: disg };
+};
 
 /* ================= залы ================= */
 function gymWall(c, y1, seed = 3, bw = 64, bh = 30) {
@@ -701,34 +715,45 @@ function sideFace(c, r, mood, o) {
   c.restore();
 }
 // Дальняя рука (за телом и блином).
-function drawLyingBack(c, Hn, b) {
+function drawLyingBack(c, Hn, b, L = OUTFITS[0]) {
   const S0 = shoulderOf(b), fs = [S0[0] - 4, S0[1] - 3], fh = [Hn[0] - 4, Hn[1] - 3];
   const fe = ik(fs, fh, 28, 27, 1), aw = armW(b);
-  blob(c, [{ k: 'line', p: [fs, fe, fh], w: aw, c: P.skinD }, { k: 'ell', x: fh[0], y: fh[1], rx: aw * 0.62, ry: aw * 0.62, c: P.skinD }]);
+  blob(c, [{ k: 'line', p: [fs, fe, fh], w: aw, c: L.sleeves ? shade(L.sleeves, -0.15) : P.skinD }, { k: 'ell', x: fh[0], y: fh[1], rx: aw * 0.62, ry: aw * 0.62, c: L.gloves ? '#16171B' : P.skinD }]);
 }
 // Скамья и неподвижное тело — рисуются один раз в картинку.
-function drawLyingBody(c, b) {
+function drawLyingBody(c, b, L = OUTFITS[0]) {
   const d = chestD(b), lw = legW(b);
   const hipP = [12, PAD - lw * 0.55], knee = [52, PAD - lw * 0.45], ankle = [56, -9];
-  blob(c, [{ k: 'line', p: [[hipP[0] - 6, hipP[1]], [knee[0] - 7, knee[1]], [ankle[0] - 8, ankle[1]]], w: lw * 0.95, c: shade(P.pants, -0.3) }, { k: 'ell', x: ankle[0] - 1, y: -5, rx: 11 + b, ry: 6, c: '#BFC3C9' }]);
+  const legC = L.tights || (L.shorts ? P.skin : L.pants), legD = legC === P.skin ? P.skinD : shade(legC, -0.3);
+  const fH = [hipP[0] - 6, hipP[1]], fK = [knee[0] - 7, knee[1]], fA = [ankle[0] - 8, ankle[1]];
+  const far = [{ k: 'line', p: [fH, fK, fA], w: lw * 0.95, c: legD }, { k: 'ell', x: ankle[0] - 1, y: -5, rx: 11 + b, ry: 6, c: '#BFC3C9' }];
+  if (L.shorts) far.push({ k: 'line', p: [fH, lp(fH, fK, 0.55)], w: lw * 0.95 + 3, c: shade(L.pants, -0.3) });
+  if (L.knees) far.push({ k: 'line', p: [lp(fH, fK, 0.84), lp(fK, fA, 0.16)], w: lw * 0.95 + 2, c: '#121317' });
+  blob(c, far);
   blob(c, [{ k: 'rr', x: -86, y: -31, w: 7, h: 30, r: 2, c: P.iron }, { k: 'rr', x: 30, y: -31, w: 7, h: 30, r: 2, c: P.iron },
     { k: 'rr', x: -100, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD }, { k: 'rr', x: 16, y: -4, w: 34, h: 4, r: 1.5, c: P.ironD },
     { k: 'rr', x: -92, y: -32, w: 134, h: 5, r: 2, c: P.iron }, { k: 'rr', x: -100, y: PAD, w: 150, h: 9, r: 4, c: P.pad }], 1.8);
   c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(-96, PAD + 1.5, 142, 2);
-  blob(c, [{ k: 'poly', p: [[2, PAD], [22, PAD], [22, PAD - d * 0.6], [2, PAD - d * 0.66]], c: P.pants }, { k: 'line', p: [hipP, knee, ankle], w: lw, c: P.pants }, { k: 'ell', x: ankle[0] + 7, y: -5, rx: 11 + b, ry: 6, c: P.white }]);
-  c.save(); c.strokeStyle = P.stripe; c.lineWidth = 1.6; c.lineCap = 'round'; c.lineJoin = 'round';
-  c.beginPath(); c.moveTo(hipP[0] + 2, hipP[1] - lw * 0.4); c.lineTo(knee[0], knee[1] - lw * 0.4); c.lineTo(ankle[0] + lw * 0.4, ankle[1] - 3); c.stroke(); c.restore();
+  const near = [{ k: 'poly', p: [[2, PAD], [22, PAD], [22, PAD - d * 0.6], [2, PAD - d * 0.66]], c: L.pants }, { k: 'line', p: [hipP, knee, ankle], w: lw, c: legC }, { k: 'ell', x: ankle[0] + 7, y: -5, rx: 11 + b, ry: 6, c: P.white }];
+  if (L.shorts) near.push({ k: 'line', p: [hipP, lp(hipP, knee, 0.55)], w: lw + 3, c: L.pants });
+  if (L.knees) near.push({ k: 'line', p: [lp(hipP, knee, 0.84), lp(knee, ankle, 0.16)], w: lw + 2, c: '#1E1F24' });
+  blob(c, near);
+  if (L.stripes) {
+    c.save(); c.strokeStyle = P.stripe; c.lineWidth = 1.6; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(hipP[0] + 2, hipP[1] - lw * 0.4); c.lineTo(knee[0], knee[1] - lw * 0.4); c.lineTo(ankle[0] + lw * 0.4, ankle[1] - 3); c.stroke(); c.restore();
+  }
   const neckA = [HEAD_C[0] + HEADR * 0.6, HEAD_C[1] - 1], neckB = [-46, PAD - d * 0.55];
   blob(c, [{ k: 'line', p: [neckA, neckB], w: 12 + b * 2.5, c: P.skin },
-    { k: 'poly', p: [[-50, PAD], [-53, PAD - d * 0.55], [-44, PAD - d * 0.9], [-26, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: P.skin }]);
-  blob(c, [{ k: 'poly', p: [[-36, PAD], [-38, PAD - d * 0.62], [-31, PAD - d * 0.97], [-26, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: P.tank }], 1.5);
+    { k: 'poly', p: [[-50, PAD], [-53, PAD - d * 0.55], [-44, PAD - d * 0.9], [-26, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: L.sleeves || P.skin }]);
+  const tx = L.stringer ? 9 : 0;   // у трико пауэрлифтера пройма глубже — плечо открыто
+  blob(c, [{ k: 'poly', p: [[-36 + tx, PAD], [-38 + tx, PAD - d * 0.62], [-31 + tx, PAD - d * 0.97], [-26 + tx * 0.5, PAD - d], [-8, PAD - d * 0.93], [10, PAD - d * 0.74], [20, PAD - d * 0.62], [20, PAD]], c: L.top }], 1.5);
   if (b >= 1.2) { c.save(); c.strokeStyle = 'rgba(27,28,34,.3)'; c.lineWidth = 1.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(-30, PAD - d * 0.95); c.quadraticCurveTo(-18, PAD - d * 0.6, -6, PAD - d * 0.88); c.stroke(); c.restore(); }
 }
 // Ближняя рука и блины (штанга смотрит на нас торцом — блин виден кругом).
-function drawLyingFront(c, Hn, b, plates) {
-  const S0 = shoulderOf(b), aw = armW(b), E = ik(S0, Hn, 28, 27, 1);
-  const parts = [{ k: 'ell', x: S0[0], y: S0[1], rx: aw * 0.8, ry: aw * 0.72, c: P.skin }, { k: 'line', p: [S0, E, Hn], w: aw, c: P.skin }, { k: 'ell', x: Hn[0], y: Hn[1], rx: aw * 0.62, ry: aw * 0.62, c: P.skin }];
-  if (b >= 1.3) { const m = lp(S0, E, 0.5), dx = E[0] - S0[0], dy = E[1] - S0[1], L = Math.hypot(dx, dy) || 1; parts.push({ k: 'ell', x: m[0] + dy / L * aw * 0.32, y: m[1] - dx / L * aw * 0.32, rx: aw * 0.72, ry: aw * 0.56, rot: Math.atan2(dy, dx), c: P.skin }); }
+function drawLyingFront(c, Hn, b, plates, LK = OUTFITS[0]) {
+  const S0 = shoulderOf(b), aw = armW(b), E = ik(S0, Hn, 28, 27, 1), armC = LK.sleeves || P.skin, handC = LK.gloves ? '#1E1F24' : P.skin;
+  const parts = [{ k: 'ell', x: S0[0], y: S0[1], rx: aw * 0.8, ry: aw * 0.72, c: armC }, { k: 'line', p: [S0, E, Hn], w: aw, c: armC }, { k: 'ell', x: Hn[0], y: Hn[1], rx: aw * 0.62, ry: aw * 0.62, c: handC }];
+  if (b >= 1.3) { const m = lp(S0, E, 0.5), dx = E[0] - S0[0], dy = E[1] - S0[1], L = Math.hypot(dx, dy) || 1; parts.push({ k: 'ell', x: m[0] + dy / L * aw * 0.32, y: m[1] - dx / L * aw * 0.32, rx: aw * 0.72, ry: aw * 0.56, rot: Math.atan2(dy, dx), c: armC }); }
   blob(c, parts);
   plateSide(c, Hn[0], Hn[1], plates);
 }
@@ -901,13 +926,6 @@ function renderOffline(oc) { return new Promise((res, rej) => { try { oc.oncompl
 // жёсткая атака, плавающие форманты. Каждый вариант считается в двух дублях — повторы не звучат одинаково.
 const VOW = { ы: [300, 1480, 2350, 3300], а: [720, 1250, 2500, 3400], о: [500, 860, 2450, 3350], у: [320, 700, 2300, 3200], п: [260, 650, 2150, 3250], х: [500, 1400, 2500, 3500], м: [240, 1050, 2200, 3200], ф: [420, 1100, 2400, 3300] };
 const VOICES = [
-  // зелёная зона — тихие звуки усилия с закрытым ртом и выдохом, раз в 2–3 повтора
-  { id: 'mmh', name: '«Ммх»', use: 'зелёная зона, раз в 2–3 повтора', tiers: ['light'], sp: { len: 0.46, press: 0.5, trem: [5, 0.015], f0: [[0, 108], [0.35, 126], [0.7, 120], [1, 104]], keys: [
-    { t: 0, v: 'м', voice: 1, noise: 0.05, amp: 0 }, { t: 0.1, v: 'м', voice: 1, noise: 0.06, amp: 0.85 }, { t: 0.58, v: 'м', voice: 1, noise: 0.08, amp: 0.9 },
-    { t: 0.7, v: 'х', voice: 0.25, noise: 0.9, amp: 0.55 }, { t: 1, v: 'х', voice: 0, noise: 0.6, amp: 0 }] } },
-  { id: 'hhuf', name: '«Хууф»', use: 'зелёная зона, раз в 2–3 повтора', tiers: ['light'], sp: { len: 0.58, press: 0.45, trem: [5, 0.015], f0: [[0, 122], [0.3, 136], [0.7, 124], [1, 108]], keys: [
-    { t: 0, v: 'х', voice: 0, noise: 1, amp: 0 }, { t: 0.08, v: 'х', voice: 0.1, noise: 1, amp: 0.45 }, { t: 0.2, v: 'у', voice: 1, noise: 0.3, amp: 0.9 }, { t: 0.6, v: 'у', voice: 1, noise: 0.35, amp: 0.8 },
-    { t: 0.74, v: 'ф', voice: 0.1, noise: 1, amp: 0.5 }, { t: 1, v: 'ф', voice: 0, noise: 0.8, amp: 0 }] } },
   { id: 'yygh', name: '«Ыыыгх»', use: 'жёлтая и красная зона, дожим', tiers: ['mid', 'heavy', 'tap'], sp: { len: 0.75, press: 0.9, fry: 0.08, trem: [7, 0.035], growl: 0.35, f0: [[0, 104], [0.3, 132], [0.6, 150], [1, 165]], keys: [
     { t: 0, v: 'ы', voice: 1, noise: 0.1, amp: 0.5 }, { t: 0.1, v: 'ы', voice: 1, noise: 0.12, amp: 1 }, { t: 0.82, v: 'ы', voice: 1, noise: 0.2, amp: 1 }, { t: 0.88, v: 'х', voice: 0.3, noise: 0.9, amp: 0.8 }, { t: 1, v: 'х', voice: 0, noise: 0.7, amp: 0 }] } },
   { id: 'aargh', name: '«Аааргх»', use: 'жёлтая и красная зона, дожим', tiers: ['mid', 'heavy', 'tap'], sp: { len: 0.85, press: 0.85, fry: 0.06, trem: [8, 0.045], growl: 0.6, f0: [[0, 110], [0.3, 140], [0.6, 160], [1, 178]], keys: [
@@ -959,12 +977,8 @@ function voiceBuf(sp) {
     }
   });
 }
-// смех соседа «ха-ха-ха-ха»: тот же голосовой синтез, выше и бодрее
-const LAUGH = (() => { const keys = []; for (let i = 0; i < 4; i++) { const t0 = i * 0.23; keys.push({ t: t0, v: 'х', voice: 0, noise: 1, amp: 0.5 }, { t: t0 + 0.05, v: 'а', voice: 1, noise: 0.3, amp: 1 }, { t: t0 + 0.14, v: 'а', voice: 1, noise: 0.3, amp: 0.8 }, { t: t0 + 0.2, v: 'х', voice: 0, noise: 0.4, amp: 0.05 }); }
-  keys.push({ t: 1, v: 'х', voice: 0, noise: 0, amp: 0 }); return { len: 0.95, press: 0.35, f0: [[0, 225], [0.3, 212], [0.6, 200], [1, 172]], keys }; })();
 function makeSounds() {
   for (const v of VOICES) for (const take of [0, 1]) A.buf['v_' + v.id + '_' + take] = normBuf(voiceBuf(v.sp));
-  A.buf.laugh = normBuf(voiceBuf(LAUGH));
   A.buf.clank = synth(0.5, (d, n, sr) => {
     const parts = [[523, 1, 7], [1311, 0.55, 10], [2207, 0.35, 14], [3119, 0.25, 18], [187, 0.4, 9]];
     for (let i = 0; i < n; i++) { const t = i / sr; let v = 0; for (const [f, a, dk] of parts) v += a * Math.sin(TAU * f * t) * Math.exp(-dk * t); if (t < 0.006) v += (Math.random() * 2 - 1) * (1 - t / 0.006); d[i] = v * 0.32; }
@@ -1127,8 +1141,8 @@ function go(st) { state = st; stateT = 0; }
 const BRO_PRICE = 50;     // мотивация за банки протеина
 const MORE_K = 3;         // «Ещё разок!»: следующий повтор растит мышцы втрое
 // Баланс: повторов мало, каждый дорогой. Нагрузка = вес / рабочий вес.
-const costFor = (load) => 0.17 * Math.pow(load, 1.5);
-const baseGain = (load) => 2.0 * Math.pow(load, 1.2);
+const costFor = (load) => 0.2 * Math.pow(load, 1.5);
+const baseGain = (load) => 1.0 * Math.pow(load, 1.2);
 const zoneMult = (f) => f >= 0.85 ? 2 : f >= 0.6 ? 1.5 : 1;
 function forecast(load, reps) {
   const cost = costFor(load), f = cost * reps;
@@ -1147,14 +1161,27 @@ function makePlans() {
 }
 function goPlan() { if (!gymOpen(S.gym)) { go('gyms'); return; } PLANS = makePlans(); go('plan'); }
 const gymOpen = (id) => !S.bans[id] || !!S.disguise[id];
-function startSet(weight, target, tut) {
+// Подготовка перед подходом: бонус, побочка и цена в банках протеина.
+const PREPS = [
+  { id: 'none', name: 'Ничего не делать', short: '', price: 0, plus: 'Без бонусов', minus: 'Без побочек' },
+  { id: 'shawa', name: 'Съесть шаурму', short: 'ШАУРМА', price: 10, plus: 'Сил на подход +20%', minus: 'Живот бурлит: в дожиме Бурлометр растёт почти вдвое быстрее' },
+  { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 25, plus: 'Дожим: тап толкает в 1,5 раза сильнее', minus: 'Судороги: с жёлтой зоны рука может замереть' },
+  { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Мышцы растут вдвое, сил +15%', minus: 'Допинг-контроль: каждый третий раз выгонят на 3 тренировки' },
+];
+const PREP_FX = { none: { costK: 1, gainK: 1 }, shawa: { costK: 0.83, gainK: 1 }, creatine: { costK: 1, gainK: 1 }, test: { costK: 0.87, gainK: 2 } };
+let PREP_FOR = null, FORCE_CRAMP = null, FORCE_DOPE = null;
+function pickPrep(id) {
+  const p = PREPS.find((x) => x.id === id); if (!p || !PREP_FOR || S.cans < p.price) return;
+  S.cans -= p.price; save(); startSet(PREP_FOR.weight, PREP_FOR.reps, false, id);
+}
+function startSet(weight, target, tut, prep = 'none') {
   // самочувствие каждый раз своё (±10%), и каждый повтор чуть разный — запас сил точно не угадать
-  const load = weight / capacity(), form = 0.9 + Math.random() * 0.2;
-  R = { weight, target, tut, load, form, word: forecast(load, target).word, cost: costFor(load) / form, repK: 1, plates: platesFor(weight), build: buildOf(S),
+  const load = weight / capacity(), form = 0.9 + Math.random() * 0.2, pf = PREP_FX[prep] || PREP_FX.none;
+  R = { weight, target, tut, load, form, prep, gainK: pf.gainK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: GYMS[S.gym].alone ? 0 : 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, lightCnt: 0, lightNext: 1, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, late: 0 } };
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, late: 0 } };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle'), 200);
 }
@@ -1196,8 +1223,8 @@ function enterPush() {
 }
 function pushTap(x, y) {
   R.taps.push({ x, y, t: 0 });
-  R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25));
-  const before = R.burl; R.burl += 0.045 + Math.random() * 0.02;
+  R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25) * (R.prep === 'creatine' ? 1.5 : 1));
+  const before = R.burl; R.burl += (0.045 + Math.random() * 0.02) * (R.prep === 'shawa' ? 1.8 : 1);
   // голос — примерно раз в 3–4 тапа и только когда прошлый доиграл; бульканье живота — в очередь за голосом
   if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) heroPlay('bulk', 0.9 + R.burl * 0.4, true);
   else if (++R.tapCnt >= R.tapNext && playVoice('tap')) { R.tapCnt = 0; R.tapNext = 3 + (Math.random() < 0.5 ? 0 : 1); }
@@ -1235,7 +1262,7 @@ const machineOver = (target) => Math.max(3, Math.ceil(target * 0.5));
 const REACT_CANS = { respect: 20, machine: 40 };
 function finishSet() {
   const old = buildOf(S), planDone = R.reps >= R.target;
-  const total = R.gains * (planDone ? 1.25 : 1);
+  const total = R.gains * (planDone ? 1.25 : 1) * R.gainK;
   const chestG = total * 0.7, armsG = total * 0.3;
   const cansG = Math.round(Math.floor(R.reps) * 4 + R.red * 3 + R.legend * 12 + (planDone ? 15 : 0));
   S.chest += chestG; S.arms += armsG; S.cans += cansG; S.sets++;
@@ -1254,8 +1281,13 @@ function finishSet() {
     else if (R.word === 'СМЕЛО' || R.word === 'ОБОСРЁШЬСЯ') react = 'respect';
   }
   const reactCans = REACT_CANS[react] || 0; S.cans += reactCans;
+  // тестостерон: допинг-контроль ловит каждого третьего (во дворе не проверяют)
+  const doped = R.prep === 'test' && !GYMS[S.gym].alone && (FORCE_DOPE ?? Math.random() < 1 / 3);
+  if (doped) { S.bans[S.gym] = 3; delete S.disguise[S.gym]; }
   save();
   const nb = buildOf(S);
+  let newOutfit = null;
+  if (stageOf(nb).i > stageOf(old).i) { const o = OUTFITS.find((x) => x.stage === stageOf(nb).i); if (o) { S.outfit = o.id; newOutfit = o.name; save(); CACHE.clear(); } }
   let quote;
   if (R.reps === 0) quote = 'Это что было? Даже не разогрелся.';
   else if (!planDone) quote = `Недожал. План был ${R.target}.`;
@@ -1267,19 +1299,19 @@ function finishSet() {
   else if (react === 'respect') quote = 'Тяжёлый план закрыл. Зал уважает.';
   else if (react === 'laugh') quote = 'Халяву закрыл… Зал ржёт.';
   DONE = { weight: R.weight, target: R.target, reps: R.reps, red: R.red, legend: R.legend, spotted: R.spotted, over: Math.max(0, reps - R.target), chestG, armsG, cansG, planDone, record, oldB: old, newB: nb,
-    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word };
+    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word, doped, gym: S.gym, newOutfit };
   DONE.cansG += reactCans;
   go('done');
-  if (react === 'laugh') play('laugh'); else if (react) play('cheer');
+  if (react === 'respect' || react === 'machine') play('cheer');
 }
 // Задержка штанги: наверху почти бесплатно, на груди — дорого и всё дороже с каждой секундой.
 const TOP_DRAIN = 0.008, BOTTOM_DRAIN = 0.07;
 // Шкала попадания внизу. Время считается от касания груди: до касания — минус, лёжа на груди — плюс.
-// Нажал в зелёном (касание ± доля секунды) — повтор дешёвый; рано (не дотянул до груди) или поздно (полежал) —
+// Нажал в зелёном (касание ± доля секунды) — повтор стоит как в прогнозе; рано (не дотянул до груди) или поздно (полежал) —
 // повтор всё равно засчитается наверху, но сил уйдёт больше. Выше шкалы — неполный повтор, как раньше не считается.
 const DESC = 1.2;   // скорость опускания: вся амплитуда ~0,8 с
-const TIM = { early: -0.4, ok0: -0.1, ok1: 0.12, max: 0.6 };
-const TIM_COST = { early: 1.3, perfect: 0.7, late: 1.25 };   // во сколько обходится повтор относительно обычного
+const TIM = { early: -0.35, ok0: -0.06, ok1: 0.06, max: 0.5 };   // зелёное окно — 0,12 с
+const TIM_COST = { early: 1.35, perfect: 1, late: 1.3 };   // в зелёном — по плану, рано и поздно — дороже
 const touchT = () => R.pos > 0 ? -R.pos / DESC : R.bottomT;
 function judgeTouch() {
   R.repMul = 1;
@@ -1296,6 +1328,7 @@ const onChest = () => R.mode === 'lift' && R.started && R.pos <= 0 && !holding()
 function setMood() {
   if (R.mode === 'crash') return 'fail';
   if (onChest() && R.bottomT > 0.35) return R.fat >= 0.6 || R.bottomT > 1.2 ? 'max' : 'strain';   // давит на грудь
+  if (R.cramp && R.cramp.on) return 'max';
   if (R.mode === 'push') return 'max';
   if (R.mode === 'spot') return 'strain';
   if (R.mode === 'motiv') return R.bro.from === 'push' && R.pos < 0.98 ? 'strain' : 'focus';
@@ -1333,14 +1366,20 @@ function updateSet(dt) {
       if (!R.pressing) {
         R.pressing = true; R.repK = 0.92 + Math.random() * 0.16;
         judgeTouch();
-        // зелёная зона — тихий звук раз в 2–3 повтора; с жёлтой зоны — стоны на каждом повторе (если прошлый голос доиграл)
-        if (R.fat < 0.6) { if (++R.lightCnt >= R.lightNext && playVoice('light')) { R.lightCnt = 0; R.lightNext = 2 + (Math.random() < 0.5 ? 0 : 1); } }
-        else playVoice(R.fat < 0.85 ? 'mid' : 'heavy');
+        // в зелёной зоне герой молчит; с жёлтой — стонет на каждом повторе (если прошлый голос доиграл)
+        if (R.fat >= 0.6) playVoice(R.fat < 0.85 ? 'mid' : 'heavy');
+        // креатин: с жёлтой зоны примерно в каждом третьем повторе руку сводит судорогой
+        if (R.prep === 'creatine' && R.fat >= 0.6 && !R.cramp && (FORCE_CRAMP ?? Math.random() < 0.3)) R.cramp = { at: Math.min(0.85, R.pos + 0.2 + Math.random() * 0.3), t: 0, on: false };
       }
       R.started = true; R.bottomT = 0;
       const dz = (R.pos > 0.38 && R.pos < 0.66) ? (1 - 0.62 * R.fat) : 1;
       const v = 0.85 * (1 - 0.6 * R.fat) * dz / Math.pow(R.load, 0.6);
-      const dp = Math.min(1 - R.pos, v * dt);
+      let dp = Math.min(1 - R.pos, v * dt);
+      if (R.cramp && R.pos >= R.cramp.at) {   // судорога: рука замерла, силы уходят
+        if (!R.cramp.on) { R.cramp.on = true; fx('СУДОРОГА!', P.bad, 26, 160); R.shake = Math.max(R.shake, 0.2); }
+        R.cramp.t += dt; dp = 0; R.fat = Math.min(1, R.fat + 0.15 * R.load * dt);
+        if (R.cramp.t >= 0.8) R.cramp = null;
+      }
       R.pos += dp; R.fat = Math.min(1, R.fat + R.cost * R.repK * R.repMul * dp);
       if (R.fat >= 0.6 && !R.fogSaid) { R.fogSaid = true; if (R.tut) fx('ШКАЛА СПРЯТАЛАСЬ', P.yellow, 24, 150); }
       if (R.fat >= 0.85 && !R.redSaid) { R.redSaid = true; bark('red'); }
@@ -1351,7 +1390,7 @@ function updateSet(dt) {
       // держит наверху на прямых руках: силы почти не тратятся
       R.fat = Math.min(1, R.fat + TOP_DRAIN * R.load * dt); R.idle += dt; R.bottomT = 0;
     } else {
-      R.pressing = false;
+      R.pressing = false; R.cramp = null;
       if (R.pos > 0) { R.pos = Math.max(0, R.pos - DESC * dt); R.bottomT = 0; }
       else if (R.started) {
         // штанга лежит на груди: силы уходят заметно, и чем дольше лежит — тем быстрее. Передержал — придавило.
@@ -1415,7 +1454,7 @@ function barTrack(x, top, bot, t, stuck, armed, danger) {
   blob(g, [{ k: 'ell', x, y: lerp(bot, top, t), rx: 8, ry: 8, c: stuck ? P.red : armed ? P.text : '#8B929C' }], 2);
 }
 // Шкала попадания под дорожкой штанги: рано · ЖМИ! · поздно, метка бежит слева направо.
-const GW = 210;
+const GW = 240;
 function touchGauge(cx, cy) {
   if (R.mode !== 'lift' || !R.started) return;
   const live = !holding() && touchT() >= TIM.early, flash = R.hit && R.hit.t < 0.7 && holding();
@@ -1487,13 +1526,14 @@ function drawSet() {
   const trem = (R.mode === 'push' || (R.fat > 0.85 && R.mode === 'lift' && holding() && R.pos < 1)) ? 1.8 : (onChest() && R.bottomT > 0.6) ? Math.min(2.2, 0.8 + R.bottomT) : 0;
   const jx = trem ? (Math.random() - 0.5) * trem : 0, jy = trem ? (Math.random() - 0.5) * trem : 0;
   const Hn = handPos(R.pos, b);
-  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingBack(g, Hn, b); g.restore();
-  layer('body-' + b.toFixed(2), 150, 200, 340, 190, (c) => { c.translate(BX, BY); c.scale(WS, WS); drawLyingBody(c, b); });
+  const LK = R.look || OUTFITS[0];
+  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingBack(g, Hn, b, LK); g.restore();
+  layer('body-' + b.toFixed(2) + LK.id, 150, 200, 340, 190, (c) => { c.translate(BX, BY); c.scale(WS, WS); drawLyingBody(c, b, LK); });
   const mood = setMood(), hs = toScreen(HEAD_C);
   g.save(); if (trem) g.translate((Math.random() - 0.5) * trem, (Math.random() - 0.5) * trem);
-  layer('head-' + mood + (disg ? 'd' : ''), hs[0] - 70, hs[1] - 70, 140, 140, (c) => { c.translate(BX, BY); c.scale(WS, WS); headSide(c, HEAD_C[0], HEAD_C[1], HEADR, { mood, band: true, mustache: disg, shades: disg }); });
+  layer('head-' + mood + (disg ? 'd' : '') + (LK.band ? 'b' : ''), hs[0] - 70, hs[1] - 70, 140, 140, (c) => { c.translate(BX, BY); c.scale(WS, WS); headSide(c, HEAD_C[0], HEAD_C[1], HEADR, { mood, band: !!LK.band, mustache: disg, shades: disg }); });
   g.restore();
-  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingFront(g, Hn, b, R.plates); g.restore();
+  g.save(); g.translate(BX + jx, BY + jy); g.scale(WS, WS); drawLyingFront(g, Hn, b, R.plates, LK); g.restore();
   if (R.bro) drawBro();
   if (crash) drawCrashWorld(ct);
   g.restore();
@@ -1513,6 +1553,7 @@ function drawSetHud() {
   g.beginPath(); g.moveTo(26, 20); g.lineTo(26, 40); g.moveTo(46, 20); g.lineTo(46, 40); g.moveTo(22, 26); g.lineTo(50, 26); g.stroke(); g.fillRect(20, 20, 4, 12); g.fillRect(48, 20, 4, 12);
   text(g, done ? 'ГОТОВО' : 'ПОСТАВИТЬ', 98, 31, font(700, 16, FF.head), ic, 'center', 'middle'); g.restore();
   if (canRack) hot(12, 10, 138, 40, rackBar);
+  if (R.prep && R.prep !== 'none') { const pp = PREPS.find((x) => x.id === R.prep); box(g, 12, 56, 138, 24, 12, 'rgba(23,25,30,.8)', 'rgba(244,242,236,.25)', 1.2); prepIcon(R.prep, 28, 68, 0.3); text(g, pp.short, 42, 73, font(600, 13, FF.head), P.text, 'left'); }
   if (pushing) {
     g.save(); g.translate(422, 58); g.rotate(-0.05); const k = 1 + 0.06 * Math.sin(R.pushT * 14); g.scale(k, k); textOl(g, 'ДОЖИМ!', 0, 0, font(400, 42, FF.logo), P.yellow, 9, 'center', 'middle'); g.restore();
     box(g, 524, 84, 132, 92, 18, 'rgba(14,15,19,.85)');
@@ -1685,7 +1726,7 @@ function wearMask(id) { const p = maskPrice(); if (S.cans < p) return; S.cans -=
 /* ================= экраны меню ================= */
 function drawTitle() {
   const id = S.gym, b = buildOf(S), disg = !!S.disguise[id];
-  layer('title-' + id + b.toFixed(2) + (disg ? 'd' : ''), 0, 0, W, H, (c) => {
+  layer('title-' + id + b.toFixed(2) + (disg ? 'd' : '') + curOutfit().id, 0, 0, W, H, (c) => {
     drawSetBg(c, id); c.fillStyle = 'rgba(10,11,14,.38)'; c.fillRect(0, 0, W, H);
     person(c, 196, 380, 1.18, Object.assign(playerLook(), { mood: 'calm', arms: 'hips' }));
   });
@@ -1703,6 +1744,7 @@ function drawTitle() {
   btn(60, 10, 92, 40, 'ЗВУКИ', 'ghost', () => go('sounds'), 16);
   iconBtn(158, 10, S.music ? 'music' : 'nomusic', () => setMusic(!S.music));
   cans(762, 30, S.cans);
+  btn(492, 322, 240, 40, 'КОСТЮМЫ', 'ghost', () => go('wardrobe'), 17);
   btn(12, 330, 100, 36, 'СБРОС', 'ghost', () => go('reset'), 15);
   text(g, APP_VERSION, 14, 384, font(400, 11, FF.body), 'rgba(244,242,236,.45)', 'left');
 }
@@ -1760,11 +1802,64 @@ function drawPlan() {
     gauge(x + w / 2, y + 150, 46, p.fc.v, 12);
     text(g, p.fc.word, x + w / 2, y + 178, font(700, 20, FF.head), p.fc.col, 'center');
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
-    hot(x, y, w, h, () => startSet(p.weight, p.reps, false));
+    hot(x, y, w, h, () => { PREP_FOR = p; go('prep'); });
   });
   text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
   text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 360, font(700, 20, FF.hand), '#E9DFC6', 'left');
   text(g, 'Тапни по плану, чтобы начать', 820, 360, font(400, 13, FF.body), P.dim, 'right');
+}
+// Значки подготовки
+function prepIcon(id, x, y, s = 1) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  if (id === 'none') { blob(g, [{ k: 'rr', x: -40, y: -6, w: 80, h: 26, r: 8, c: '#7C5CC4' }, { k: 'rr', x: -46, y: -22, w: 22, h: 42, r: 8, c: '#6A4DB0' }, { k: 'rr', x: 24, y: -22, w: 22, h: 42, r: 8, c: '#6A4DB0' }], 3); textOl(g, 'z z', 4, -24, font(700, 22, FF.hand), '#FFFFFF', 4, 'center'); }
+  else if (id === 'shawa') { g.rotate(-0.5); blob(g, [{ k: 'rr', x: -16, y: -40, w: 32, h: 80, r: 14, c: '#E6C38A' }], 3); g.fillStyle = '#5FA05A'; g.fillRect(-12, -40, 24, 8); g.fillStyle = '#C8433A'; g.fillRect(-12, -32, 24, 5); g.strokeStyle = 'rgba(27,28,34,.35)'; g.lineWidth = 2; for (const yy of [-10, 6, 22]) { g.beginPath(); g.moveTo(-16, yy); g.lineTo(16, yy - 8); g.stroke(); } box(g, -17, 14, 34, 26, 4, '#F4F2EC', INK, 2.5); }
+  else if (id === 'creatine') { blob(g, [{ k: 'rr', x: -24, y: -26, w: 48, h: 56, r: 6, c: '#F4F2EC' }, { k: 'rr', x: -26, y: -36, w: 52, h: 14, r: 4, c: P.blue }], 3); g.fillStyle = P.red; g.fillRect(-24, -6, 48, 16); text(g, 'CR', 0, 7, font(700, 13, FF.head), '#FFFFFF', 'center'); }
+  else if (id === 'test') { g.rotate(-0.7); blob(g, [{ k: 'rr', x: -10, y: -30, w: 20, h: 48, r: 4, c: '#CFE5F5' }, { k: 'rr', x: -16, y: -36, w: 32, h: 8, r: 3, c: '#9AA3AD' }, { k: 'rr', x: -3, y: -50, w: 6, h: 16, r: 2, c: '#9AA3AD' }], 3); g.fillStyle = '#E8BC3A'; g.fillRect(-7, -14, 14, 28); blob(g, [{ k: 'line', p: [[0, 18], [0, 44]], w: 2.5, c: '#C9CED4' }], 1.5); }
+  g.restore();
+}
+function drawPrep() {
+  panelBg();
+  const p = PREP_FOR;
+  iconBtn(12, 10, 'back', () => go('plan'));
+  text(g, 'КАК ПОДГОТОВИТЬСЯ?', 64, 28, font(700, 20, FF.head), P.text, 'left');
+  if (p) text(g, 'Жим ' + p.weight + ' кг × ' + p.reps + ' · ' + p.fc.word + ' · ' + GYMS[S.gym].name, 64, 48, font(400, 13, FF.body), P.dim, 'left');
+  cans(762, 30, S.cans);
+  PREPS.forEach((pr, i) => {
+    const x = 24 + i * 202, y = 66, w = 190, h = 300, can = S.cans >= pr.price;
+    box(g, x, y, w, h, 16, P.ui2, 'rgba(244,242,236,.12)', 1.5);
+    g.save(); if (!can) g.globalAlpha = 0.45; prepIcon(pr.id, x + w / 2, y + 50, 0.85); g.restore();
+    text(g, pr.name, x + 14, y + 110, font(700, 17, FF.head), P.text, 'left');
+    if (pr.price) { canIcon(g, x + 22, y + 128, 0.7); text(g, String(pr.price), x + 34, y + 134, font(700, 16, FF.head), P.text, 'left'); } else text(g, 'бесплатно', x + 14, y + 134, font(600, 14, FF.head), P.dim, 'left');
+    let yy = y + 160;
+    for (const l of wrapLines('+ ' + pr.plus, w - 28, font(500, 12, FF.body))) { text(g, l, x + 14, yy, font(500, 12, FF.body), P.good, 'left'); yy += 16; }
+    yy += 6;
+    for (const l of wrapLines('− ' + pr.minus, w - 28, font(500, 12, FF.body))) { text(g, l, x + 14, yy, font(500, 12, FF.body), P.bad, 'left'); yy += 16; }
+    btn(x + 14, y + 240, w - 28, 44, can ? 'ВЫБРАТЬ  ▸' : 'МАЛО БАНОК', can ? 'primary' : 'off', () => pickPrep(pr.id), 16);
+  });
+  text(g, 'Валера: бонус всегда с подвохом. Читай побочку.', 24, 384, font(700, 18, FF.hand), '#E9DFC6', 'left');
+}
+function drawWardrobe() {
+  panelBg();
+  iconBtn(12, 10, 'back', () => go('title'));
+  const st = stageOf(buildOf(S)), cur = curOutfit();
+  text(g, 'КОСТЮМЫ', 64, 32, font(700, 22, FF.head), P.text, 'left');
+  text(g, 'Каждый костюм открывается на своей стадии. Ты сейчас — ' + st.name + '.', 64, 52, font(400, 13, FF.body), P.dim, 'left');
+  OUTFITS.forEach((o, i) => {
+    const x = 24 + i * 202, y = 70, w = 190, h = 304, open = outfitOpen(o), on = cur.id === o.id;
+    box(g, x, y, w, h, 16, P.ui2, on ? 'rgba(244,193,46,.7)' : 'rgba(244,242,236,.12)', on ? 2.5 : 1.5);
+    g.save(); rrPath(g, x + 8, y + 8, w - 16, 168, 10); g.clip();
+    layer('wd-' + o.id, x + 8, y + 8, w - 16, 168, (c) => {
+      c.fillStyle = '#2B2F38'; c.fillRect(x + 8, y + 8, w - 16, 168);
+      person(c, x + w / 2, y + 170, 0.68, { build: Math.max(0.5, STAGES[o.stage][1]), top: o.top, pants: o.pants, stripes: o.stripes, band: o.band, shorts: o.shorts, tights: o.tights, sleeves: o.sleeves, stringer: o.stringer, gloves: o.gloves, knees: o.knees, arms: 'hips', mood: 'proud' });
+    });
+    if (!open) { g.fillStyle = 'rgba(14,15,19,.62)'; g.fillRect(x + 8, y + 8, w - 16, 168); lockIcon(g, x + w / 2, y + 86, 2, P.text); }
+    g.restore();
+    text(g, o.name, x + 14, y + 200, font(700, 17, FF.head), open ? P.text : P.dim, 'left');
+    wrapLines(o.desc, w - 28, font(400, 12, FF.body)).slice(0, 3).forEach((l, j) => text(g, l, x + 14, y + 220 + j * 15, font(400, 12, FF.body), P.dim, 'left'));
+    if (on) btn(x + 14, y + 258, w - 28, 36, '✓ НАДЕТ', 'ghost', null, 15);
+    else if (open) btn(x + 14, y + 258, w - 28, 36, 'НАДЕТЬ', 'primary', () => { S.outfit = o.id; save(); CACHE.clear(); }, 16);
+    else btn(x + 14, y + 258, w - 28, 36, 'СТАДИЯ ' + STAGES[o.stage][0], 'off', null, 15);
+  });
 }
 function drawSounds() {
   panelBg();
@@ -1805,8 +1900,8 @@ function drawReaction(d) {
   person(g, sx, 364 + bob, 1, Object.assign({}, NPC[d.spot], { arms: pose, mood, flip: true }));
   if (stateT > 0.7) {
     // голоса зала — по краям, чтобы не заслонять реплику соседа и надписи
-    const spots = [[36, 262], [36, 200], [36, 138], [318, 104]];
-    CROWD[d.react].forEach((w, i) => {
+    const spots = [[36, 262], [36, 206], [36, 150]];   // слева от героя: справа реплика соседа и надписи
+    CROWD[d.react].slice(0, 3).forEach((w, i) => {
       const ph = (stateT * 0.5 + i * 0.25) % 1, [x, y0] = spots[i];
       g.save(); g.globalAlpha = Math.sin(ph * Math.PI) * 0.95; textOl(g, w, x, y0 - ph * 22, font(700, 17, FF.head), d.react === 'laugh' ? '#FFE27A' : P.good, 5, 'left'); g.restore();
     });
@@ -1825,7 +1920,7 @@ function drawDone() {
   if (d.react && d.spot) drawReaction(d);
   if (stateT < 1.6) { const s2 = 1 - stateT / 1.6; sparkle(g, 128, 150, 12 * s2 + 4); sparkle(g, 304, 142, 10 * s2 + 3); sparkle(g, 290, 196, 7); sparkle(g, 150, 214, 7); }
   textOl(g, '+' + Math.round(d.chestG), 214, 296, font(700, 26, FF.head), '#8FB4FF', 6, 'center');
-  if (d.stageUp && stateT > 1.0) { const s2 = easeOut((stateT - 1.0) / 0.3); g.save(); g.translate(214, 60); g.scale(s2, s2); box(g, -130, -22, 260, 44, 22, P.yellow, INK, 2.5); text(g, 'ТЫ ТЕПЕРЬ ' + stageOf(d.newB).name + '!', 0, 1, font(700, 20, FF.head), INK, 'center', 'middle'); g.restore(); }
+  if (d.stageUp && stateT > 1.0) { const s2 = easeOut((stateT - 1.0) / 0.3); g.save(); g.translate(214, 60); g.scale(s2, s2); box(g, -130, -22, 260, 44, 22, P.yellow, INK, 2.5); text(g, 'ТЫ ТЕПЕРЬ ' + stageOf(d.newB).name + '!', 0, 1, font(700, 20, FF.head), INK, 'center', 'middle'); if (d.newOutfit) textOl(g, 'Новый костюм: ' + d.newOutfit, 0, 40, font(700, 15, FF.head), P.yellow, 5, 'center'); g.restore(); }
   box(g, 412, 12, 420, 366, 18, 'rgba(23,25,30,.95)', 'rgba(244,242,236,.15)', 1.5);
   text(g, d.planDone ? 'ПОДХОД ЗАКРЫТ' : 'ПОДХОД НЕ ДОЖАТ', 432, 48, font(700, 26, FF.head), d.planDone ? P.text : P.bad, 'left');
   text(g, 'Жим ' + d.weight + ' кг · план ' + d.target + (d.tut ? ' · первая тренировка' : ''), 432, 70, font(400, 14, FF.body), P.dim, 'left');
@@ -1845,6 +1940,7 @@ function drawDone() {
   if (d.record) { box(g, 530, 256, 286, 32, 16, null, P.yellow, 2); text(g, 'РЕКОРД · жим ' + d.weight + ' кг × ' + Math.floor(d.reps), 673, 277, font(600, 15, FF.head), P.yellow, 'center'); }
   else { box(g, 530, 256, 286, 32, 16, null, d.planDone ? P.good : P.bad, 2); text(g, d.planDone ? 'ПЛАН ВЫПОЛНЕН' : 'ПЛАН НЕ ВЫПОЛНЕН', 673, 277, font(600, 15, FF.head), d.planDone ? P.good : P.bad, 'center'); }
   text(g, d.quote + ' — Валера', 432, 316, font(700, 19, FF.hand), '#E9DFC6', 'left');
+  if (d.doped && stateT > 0.9) { const s2 = easeOut((stateT - 0.9) / 0.3); g.save(); g.translate(214, 216); g.rotate(-0.1); g.scale(s2, s2); box(g, -150, -34, 300, 68, 8, 'rgba(244,242,236,.95)', P.red, 4); text(g, 'ДОПИНГ-КОНТРОЛЬ!', 0, -6, font(400, 20, FF.logo), P.red, 'center', 'middle'); text(g, 'Выгнали на 3 тренировки', 0, 20, font(600, 15, FF.body), INK, 'center', 'middle'); g.restore(); }
   btn(432, 332, 150, 40, 'КАЧАЛКИ', 'ghost', () => go('gyms'), 17);
   btn(594, 332, 222, 40, 'ЕЩЁ ПОДХОД  ▸', 'primary', () => goPlan(), 18);
 }
@@ -1894,6 +1990,8 @@ function draw() {
   else if (state === 'gyms') drawGyms();
   else if (state === 'sounds') drawSounds();
   else if (state === 'reset') drawReset();
+  else if (state === 'prep') drawPrep();
+  else if (state === 'wardrobe') drawWardrobe();
 }
 const PTR = new Map(); let KEYHOLD = false;
 function toLogical(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
@@ -1970,6 +2068,7 @@ window.ER = {
   step(sec, fps = 60) { const dt = 1 / fps; for (let i = 0; i < Math.round(sec * fps); i++) update(dt); draw(); },
   more(v) { answerMore(v); },
   forceCall(v) { FORCE_CALL = v; },
+  forceCramp(v) { FORCE_CRAMP = v; }, forceDope(v) { FORCE_DOPE = v; },
   heroLog() { return A && A.heroLog ? A.heroLog.slice() : []; },
   bro() { callBro(); },
   // лист макетов мотиватора: все варианты BRO_LOOKS рядом (для tools/mockups-bro.mjs)
