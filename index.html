@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -323,8 +323,9 @@ function head(c, x, y, r, o = {}) {
   if (hs === 'buzz' || hs === 'pony') { c.fillStyle = o.hairC || P.hair; c.beginPath(); c.ellipse(x, y - r * 0.95, r * 1.05, r * 0.55, 0, 0, TAU); c.fill(); }
   if (hs === 'cap') { c.fillStyle = o.hairC || P.red; c.beginPath(); c.ellipse(x, y - r * 0.85, r * 1.1, r * 0.6, 0, 0, TAU); c.fill(); }
   if (hs === 'kerchief') {
-    c.fillStyle = o.hairC || '#C8433A'; c.beginPath(); c.ellipse(x, y - r * 0.62, r * 1.2, r * 0.66, 0, 0, TAU); c.fill();
-    c.fillStyle = '#FFFFFF'; for (const [dx, dy] of [[-0.5, -0.7], [0, -0.85], [0.45, -0.62], [-0.2, -0.45], [0.25, -0.38]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * 0.06, 0, TAU); c.fill(); }
+    // платок кончается выше бровей (они на высоте −0,32…−0,44 r), иначе брови ложатся поверх ткани
+    c.fillStyle = o.hairC || '#C8433A'; c.beginPath(); c.ellipse(x, y - r * 0.98, r * 1.2, r * 0.48, 0, 0, TAU); c.fill();
+    c.fillStyle = '#FFFFFF'; for (const [dx, dy] of [[-0.5, -0.8], [0, -0.92], [0.45, -0.78], [-0.22, -0.64], [0.24, -0.62]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * 0.055, 0, TAU); c.fill(); }
   }
   if (hs === 'bald') { c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(x - r * 0.35, y - r * 0.62, r * 0.2, r * 0.1, -0.5, 0, TAU); c.fill(); }
   if (o.beard) {   // борода: подбородок, баки и полоса над губой
@@ -337,7 +338,7 @@ function head(c, x, y, r, o = {}) {
   c.restore();
   if (hs === 'cap') blob(c, [{ k: 'ell', x, y: y - r * 0.4, rx: r * 0.95, ry: r * 0.17, c: shade(o.hairC || P.red, -0.15) }], Math.min(ol, 2.5));
   if (o.band) blob(c, [{ k: 'line', p: [[x + r * 0.85, y - r * 0.44], [x + r * 1.32, y - r * 0.22]], w: r * 0.13, c: P.band }, { k: 'line', p: [[x + r * 0.85, y - r * 0.44], [x + r * 1.36, y - r * 0.5]], w: r * 0.13, c: P.band }], Math.min(ol, 2));
-  if (hs === 'kerchief') blob(c, [{ k: 'ell', x: x + r * 0.78, y: y - r * 0.56, rx: r * 0.16, ry: r * 0.12, c: o.hairC || '#C8433A' }, { k: 'line', p: [[x + r * 0.86, y - r * 0.5], [x + r * 1.1, y - r * 0.2]], w: r * 0.12, c: o.hairC || '#C8433A' }], 1.5);
+  if (hs === 'kerchief') blob(c, [{ k: 'ell', x: x + r * 0.8, y: y - r * 0.74, rx: r * 0.16, ry: r * 0.12, c: o.hairC || '#C8433A' }, { k: 'line', p: [[x + r * 0.88, y - r * 0.68], [x + r * 1.12, y - r * 0.38]], w: r * 0.12, c: o.hairC || '#C8433A' }], 1.5);
   face(c, x, y, r, mood);
   if (o.scar) { c.save(); c.strokeStyle = 'rgba(240,200,185,.85)'; c.lineWidth = r * 0.07; c.lineCap = 'round'; c.beginPath(); c.moveTo(x - r * 0.52, y - r * 0.52); c.lineTo(x - r * 0.2, y + r * 0.12); c.stroke();
     c.lineWidth = r * 0.04; for (const k of [0.25, 0.5, 0.75]) { const px = lerp(x - r * 0.52, x - r * 0.2, k), py = lerp(y - r * 0.52, y + r * 0.12, k); c.beginPath(); c.moveTo(px - r * 0.07, py + r * 0.03); c.lineTo(px + r * 0.07, py - r * 0.03); c.stroke(); } c.restore(); }
@@ -1169,7 +1170,8 @@ function forecast(load, reps) {
 }
 function makePlans() {
   const cap = capacity();
-  return [['ЛЕГКО', 0.8, 3], ['РАБОЧИЙ', 1.0, 4], ['НА ГРАНИ', 1.15, 5]].map(([name, k, reps]) => {
+  // разница в 2 повтора; веса подобраны так, чтобы прогноз остался ХАЛЯВА / НОРМ / ОБОСРЁШЬСЯ (≈0,4 / 0,8 / 1,2 запаса сил)
+  return [['ЛЕГКО', 0.75, 3], ['РАБОЧИЙ', 0.85, 5], ['НА ГРАНИ', 0.92, 7]].map(([name, k, reps]) => {
     const weight = Math.max(20, Math.round(k * cap / 5) * 5);
     const fc = forecast(weight / cap, reps); fc.gain = Math.round(Math.min(growCap(stageOf(buildOf(S))), fc.gain * newbieK()));
     return { name, weight, reps, fc };
@@ -1192,12 +1194,14 @@ const FOODS = [
 ];
 const SUPPS = [
   { id: 'none', name: 'Без добавок', short: '', price: 0, plus: 'Без бонусов', minus: 'Без побочек' },
-  { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 30, plus: 'Выносливость +15%', minus: 'Судороги: с жёлтой зоны рука может замереть', bad: true },
-  { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Выносливость и рост +15%', minus: 'Судороги; допинг-контроль может выгнать', bad: true },
+  { id: 'bcaa', name: 'Глотнуть BCAA', short: 'BCAA', price: 15, plus: 'Сил +15%, дожим +25%', minus: 'Без побочек' },
+  { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 30, plus: 'Сил +15%, дожим +50%', minus: 'Судороги: с жёлтой зоны рука может замереть', bad: true },
+  { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Сил +30%, дожим ×2', minus: 'Судороги; допинг-контроль может выгнать', bad: true },
 ];
 const FOOD = (id) => FOODS.find((x) => x.id === id) || FOODS[0];
 const SUPP = (id) => SUPPS.find((x) => x.id === id) || SUPPS[0];
-const PREP_FX = { none: { costK: 1, gainK: 1 }, creatine: { costK: 0.87, gainK: 1 }, test: { costK: 0.87, gainK: 1.15 } };
+// «сил +N%» — повтор стоит в 1+N раз дешевле; «дожим» — во сколько раз сильнее толкает каждый тап
+const PREP_FX = { none: { costK: 1, pushK: 1 }, bcaa: { costK: 1 / 1.15, pushK: 1.25 }, creatine: { costK: 1 / 1.15, pushK: 1.5 }, test: { costK: 1 / 1.3, pushK: 2 } };
 let PREP_FOR = null, PREP_SEL = { food: 'none', supp: 'none' }, FORCE_CRAMP = null, FORCE_DOPE = null, FORCE_SHAWA = null;
 function prepState() {
   const f = FOOD(PREP_SEL.food), sp = SUPP(PREP_SEL.supp), price = f.price + sp.price;
@@ -1216,7 +1220,7 @@ function startSet(weight, target, tut, a = 'none', b = 'none') {
   // самочувствие каждый раз своё (±10%), и каждый повтор чуть разный — запас сил точно не угадать
   const load = weight / capacity(), form = 0.9 + Math.random() * 0.2, pf = PREP_FX[supp] || PREP_FX.none;
   S.energy = Math.max(0, S.energy - ENERGY_COST); if (S.gym === 'podval') S.broOpen = true; save();   // подход отнимает энергию; в «Железяке» открывается мотивация
-  R = { weight, target, tut, load, form, food, supp, gainK: pf.gainK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
+  R = { weight, target, tut, load, form, food, supp, pushK: pf.pushK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: GYMS[S.gym].alone ? 0 : 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
@@ -1269,7 +1273,7 @@ function enterPush() {
 }
 function pushTap(x, y) {
   R.taps.push({ x, y, t: 0 });
-  R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25));
+  R.pos = Math.min(1, R.pos + 0.052 * (1 - R.burl * 0.25) * R.pushK);
   const before = R.burl; R.burl += 0.045 + Math.random() * 0.02;
   // голос — примерно раз в 3–4 тапа и только когда прошлый доиграл; бульканье живота — в очередь за голосом
   if (Math.floor(before * 5) !== Math.floor(R.burl * 5)) heroPlay('bulk', 0.9 + R.burl * 0.4, true);
@@ -1308,7 +1312,7 @@ const machineOver = (target) => Math.max(3, Math.ceil(target * 0.5));
 const REACT_CANS = { respect: 20, machine: 40 };
 function finishSet() {
   const old = buildOf(S), planDone = R.reps >= R.target;
-  const total = Math.min(growCap(stageOf(old)), R.gains * (planDone ? 1.25 : 1) * R.gainK * newbieK());
+  const total = Math.min(growCap(stageOf(old)), R.gains * (planDone ? 1.25 : 1) * newbieK());
   const chestG = total * 0.7, armsG = total * 0.3;
   const cansG = Math.round(Math.floor(R.reps) * 4 + R.red * 3 + R.legend * 12 + (planDone ? 15 : 0));
   S.chest += chestG; S.arms += armsG; S.cans += cansG; S.sets++;
@@ -1431,7 +1435,7 @@ function updateSet(dt) {
         // в зелёной зоне герой молчит; с жёлтой — стонет на каждом повторе (если прошлый голос доиграл)
         if (R.fat >= 0.6) playVoice(R.fat < 0.85 ? 'mid' : 'heavy');
         // креатин и тестостерон: с жёлтой зоны примерно в каждом третьем повторе руку сводит судорогой
-        if (R.supp !== 'none' && R.fat >= 0.6 && !R.cramp && (FORCE_CRAMP ?? Math.random() < 0.3)) R.cramp = { at: Math.min(0.85, R.pos + 0.2 + Math.random() * 0.3), t: 0, on: false };
+        if ((R.supp === 'creatine' || R.supp === 'test') && R.fat >= 0.6 && !R.cramp && (FORCE_CRAMP ?? Math.random() < 0.3)) R.cramp = { at: Math.min(0.85, R.pos + 0.2 + Math.random() * 0.3), t: 0, on: false };
       }
       R.started = true; R.bottomT = 0;
       const dz = (R.pos > 0.38 && R.pos < 0.66) ? (1 - 0.62 * R.fat) : 1;
@@ -1890,6 +1894,7 @@ function prepIcon(id, x, y, s = 1) {
     box(g, 2, -18, 34, 40, 4, '#F4F2EC', INK, 2.5); g.fillStyle = P.blue; g.fillRect(4, -4, 30, 12); text(g, 'ТВОРОГ', 19, 6, font(700, 8, FF.head), '#FFFFFF', 'center');
     for (const [dx, rot] of [[-22, -0.2], [-12, 0.15]]) { g.save(); g.translate(dx, 0); g.rotate(rot); g.strokeStyle = INK; g.lineCap = 'round'; g.lineWidth = 13; g.beginPath(); g.arc(14, -6, 26, 2.3, 3.9); g.stroke(); g.strokeStyle = '#F4D03F'; g.lineWidth = 8.5; g.stroke(); g.restore(); }
   }
+  else if (id === 'bcaa') { blob(g, [{ k: 'rr', x: -18, y: -30, w: 36, h: 64, r: 8, c: '#4FB0C6' }, { k: 'rr', x: -20, y: -44, w: 40, h: 16, r: 5, c: '#2B2F38' }, { k: 'rr', x: -6, y: -54, w: 12, h: 12, r: 3, c: '#2B2F38' }], 3); text(g, 'BCAA', 0, 8, font(700, 12, FF.head), '#FFFFFF', 'center'); }
   else if (id === 'creatine') { blob(g, [{ k: 'rr', x: -24, y: -26, w: 48, h: 56, r: 6, c: '#F4F2EC' }, { k: 'rr', x: -26, y: -36, w: 52, h: 14, r: 4, c: P.blue }], 3); g.fillStyle = P.red; g.fillRect(-24, -6, 48, 16); text(g, 'CR', 0, 7, font(700, 13, FF.head), '#FFFFFF', 'center'); }
   else if (id === 'test') { g.rotate(-0.7); blob(g, [{ k: 'rr', x: -10, y: -30, w: 20, h: 48, r: 4, c: '#CFE5F5' }, { k: 'rr', x: -16, y: -36, w: 32, h: 8, r: 3, c: '#9AA3AD' }, { k: 'rr', x: -3, y: -50, w: 6, h: 16, r: 2, c: '#9AA3AD' }], 3); g.fillStyle = '#E8BC3A'; g.fillRect(-7, -14, 14, 28); blob(g, [{ k: 'line', p: [[0, 18], [0, 44]], w: 2.5, c: '#C9CED4' }], 1.5); }
   g.restore();
@@ -1914,20 +1919,18 @@ function drawPrep() {
   text(g, 'КАК ПОДГОТОВИТЬСЯ?', 64, 28, font(700, 20, FF.head), P.text, 'left');
   if (p) fitText(g, 'Жим ' + p.weight + ' кг × ' + p.reps + ' · ' + p.fc.word + ' · подход отнимает ' + ENERGY_COST + ' энергии', 64, 48, 590, 400, 13, FF.body, P.dim);
   cans(762, 30, S.cans); energyChip(694, 30);
-  text(g, 'ЕДА — ЭНЕРГИЯ', 24, 74, font(600, 13, FF.head), P.dim, 'left');
-  FOODS.forEach((it, i) => prepCard(it, 24 + i * 202, 80, 190, 112, PREP_SEL.food === it.id, () => { PREP_SEL.food = it.id; }));
-  text(g, 'ДОБАВКИ — БОНУС С ПОДВОХОМ', 24, 212, font(600, 13, FF.head), P.dim, 'left');
-  SUPPS.forEach((it, i) => prepCard(it, 24 + i * 202, 218, 190, 112, PREP_SEL.supp === it.id, () => { PREP_SEL.supp = it.id; }));
-  // итог: энергия и цена, кнопка
-  const x = 630, y = 218;
-  box(g, x, y, 190, 112, 14, 'rgba(23,25,30,.95)', st.why ? 'rgba(255,138,120,.5)' : 'rgba(244,193,46,.6)', 2);
-  text(g, 'ЭНЕРГИЯ', x + 12, y + 18, font(600, 11, FF.head), P.dim, 'left');
-  text(g, Math.round(S.energy) + ' → ' + Math.round(st.en), x + 12, y + 40, font(700, 17, FF.head), st.en < ENERGY_COST ? P.bad : P.text, 'left');
-  text(g, st.left >= 0 ? 'после подхода: ' + Math.round(st.left) : 'не хватит на подход', x + 12, y + 56, font(500, 11, FF.body), st.left >= 0 ? P.dim : P.bad, 'left');
-  text(g, 'ЦЕНА', x + 136, y + 18, font(600, 11, FF.head), P.dim, 'left');
-  canIcon(g, x + 142, y + 34, 0.55); text(g, String(st.price), x + 152, y + 40, font(700, 17, FF.head), S.cans < st.price ? P.bad : P.text, 'left');
-  btn(x + 12, y + 66, 166, 36, st.why || 'ЖАТЬ  ▸', st.why ? 'off' : 'primary', startPrepared, 16);
-  text(g, 'Валера: еду и добавку можно взять вместе. Без энергии подход не начнёшь.', 24, 372, font(700, 18, FF.hand), '#E9DFC6', 'left');
+  text(g, 'ЕДА — ЭНЕРГИЯ', 24, 70, font(600, 13, FF.head), P.dim, 'left');
+  FOODS.forEach((it, i) => prepCard(it, 24 + i * 202, 76, 190, 108, PREP_SEL.food === it.id, () => { PREP_SEL.food = it.id; }));
+  text(g, 'ДОБАВКИ — СИЛЫ И ДОЖИМ', 24, 200, font(600, 13, FF.head), P.dim, 'left');
+  SUPPS.forEach((it, i) => prepCard(it, 24 + i * 202, 206, 190, 108, PREP_SEL.supp === it.id, () => { PREP_SEL.supp = it.id; }));
+  // итог внизу: энергия и цена слева, «ЖАТЬ» справа
+  box(g, 24, 326, 594, 52, 14, 'rgba(23,25,30,.95)', st.why ? 'rgba(255,138,120,.5)' : 'rgba(244,193,46,.45)', 2);
+  text(g, 'ЭНЕРГИЯ', 40, 346, font(600, 11, FF.head), P.dim, 'left');
+  text(g, Math.round(S.energy) + ' → ' + Math.round(st.en), 40, 368, font(700, 18, FF.head), st.en < ENERGY_COST ? P.bad : P.text, 'left');
+  text(g, st.left >= 0 ? 'после подхода останется ' + Math.round(st.left) : 'на подход не хватит — поешь', 150, 364, font(500, 13, FF.body), st.left >= 0 ? P.dim : P.bad, 'left');
+  text(g, 'ЦЕНА', 486, 346, font(600, 11, FF.head), P.dim, 'left');
+  canIcon(g, 492, 362, 0.6); text(g, String(st.price), 504, 368, font(700, 18, FF.head), S.cans < st.price ? P.bad : P.text, 'left');
+  btn(630, 328, 190, 48, st.why || 'ЖАТЬ  ▸', st.why ? 'off' : 'primary', startPrepared, 19);
 }
 function drawWardrobe() {
   panelBg();
@@ -2082,7 +2085,7 @@ const TIPS = {
   gyms: { tut: true, title: 'КАЧАЛКИ', text: 'Выбери, где качаться. Пока ты ДРИЩ, пускают только во двор — остальные качалки откроются, когда прокачаешься.', target: () => [24, 66, 796, 300] },
   energy: { tut: true, title: 'ЭНЕРГИЯ', text: 'Это энергия. Каждый подход отнимает 30, сама она не восстанавливается — перед качалкой подзаряжайся едой.', target: () => [680, 12, 72, 36] },
   plans: { tut: true, title: 'ВЫБОР ПЛАНА', text: 'Три плана: ЛЕГКО, РАБОЧИЙ и НА ГРАНИ. Чем тяжелее — тем больше рост мышц и банок, но выше риск обосраться. Прогноз — на карточке.', target: () => [24, 70, 796, 238] },
-  prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Сверху — еда: восстанавливает энергию (шаурма и бананы +50, смузи +100). Снизу — добавки: бонус с побочкой. Можно взять и еду, и добавку.', target: () => [24, 60, 796, 272] },
+  prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Сверху — еда: восстанавливает энергию (шаурма и бананы +50, смузи +100). Снизу — добавки: больше сил и сильнее дожим, но у креатина и тестостерона есть побочка. Можно взять и еду, и добавку.', target: () => [24, 60, 796, 258] },
   lift: { tut: true, title: 'КАК ЖАТЬ', text: 'Держи палец на экране — штанга идёт вверх. Дошла до верха — отпусти палец. Это повтор.', target: () => { const b = R ? R.build : 1, t = toScreen(handPos(1, b))[1], bt = toScreen(handPos(0, b))[1]; return [356, t - 28, 48, bt - t + 44]; } },
   catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Отпусти — штанга опустится. Внизу появится шкала: жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. На груди штангу не держи.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
   yellow: { tut: true, title: 'ЖЁЛТАЯ ЗОНА', text: 'Каждый повтор теперь растит мышцы ×1,5. Но шкала сил спряталась — дальше смотри на лицо, дрожь и пульс.', target: () => [782, 58, 36, 294] },
