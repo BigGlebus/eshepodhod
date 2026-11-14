@@ -123,7 +123,7 @@ await click(353, 238); check(await ev('ER.state') === 'gyms', '«Сменить 
 await shot('15-gyms');
 
 // 3. Другие качалки и усы
-await click(400, 324); check(await ev('ER.state === "plan" && ER.S.gym') === 'school', 'переход в школьный спортзал');
+await click(321, 328); check(await ev('ER.state === "plan" && ER.S.gym') === 'school', 'переход в школьный спортзал');
 await click(420, 190); for (let i = 0; i < 3; i++) await rep();
 await ev('ER.hold(true); ER.step(0.25)'); await shot('16-school'); await ev('ER.hold(false); ER.step(0.6); ER.rackBar(); ER.step(1.5)');
 check(await ev('ER.S.bans.podval') === 2, 'тренировка в школе сократила изгнание до 2');
@@ -132,7 +132,7 @@ for (let i = 0; i < 3; i++) await rep();
 await ev('ER.hold(true); ER.step(0.25)'); await shot('17-glamour'); await ev('ER.hold(false); ER.step(0.6); ER.rackBar(); ER.step(1.5)');
 await ev('ER.go("gyms"); ER.step(0.05)'); await shot('18-gyms-banned');
 const cansBefore = await ev('ER.S.cans');
-await click(136, 324); check(await ev('ER.S.disguise.podval') === true && await ev('ER.S.gym') === 'podval' && await ev('ER.S.cans') === cansBefore - 40, 'вернулся в подвал в усах за 40 банок');
+await click(119, 328); check(await ev('ER.S.disguise.podval') === true && await ev('ER.S.gym') === 'podval' && await ev('ER.S.cans') === cansBefore - 40, 'вернулся в подвал в усах за 40 банок');
 await click(420, 190); for (let i = 0; i < 2; i++) await rep(); await ev('ER.step(0.6)');
 await shot('19-disguise-set');
 await ev('ER.go("title"); ER.step(0.1)'); await shot('20-title-disguise');
@@ -140,8 +140,8 @@ await ev('ER.go("title"); ER.step(0.1)'); await shot('20-title-disguise');
 // 4. Экран «Звуки»: послушать и выключить вариант
 await click(106, 30); check(await ev('ER.state') === 'sounds', 'кнопка «Звуки» → экран вариантов');
 await click(120, 103); await ev('ER.step(0.2)'); await shot('21-sounds');
-await click(252, 103); check(await ev('ER.S.voiceOff.ooop') === true, 'галочка выключает вариант «Оооп!»');
-await click(252, 103); check(!(await ev('ER.S.voiceOff.ooop')), 'повторный тап включает обратно');
+await click(252, 103); check(await ev('ER.S.voiceOff.mmh') === true, 'галочка выключает вариант «Ммх»');
+await click(252, 103); check(!(await ev('ER.S.voiceOff.mmh')), 'повторный тап включает обратно');
 
 // 5. Прокачанный герой и мотиватор: только в дожиме, штанга гарантированно уходит наверх, силы не восстанавливаются
 await ev('ER.forceCall(false)');
@@ -166,6 +166,53 @@ r = await ev('(() => { for (let i = 0; i < 120 && ER.R.pos > 0; i++) ER.step(1/6
 check(r[1] - r[0] > 0.05, 'штанга на груди 1 с — силы заметно уходят (+' + (r[1] - r[0]).toFixed(3) + ')');
 await ev('ER.step(0.3)'); await shot('25b-chest');
 await ev('ER.step(8)'); check(await ev('ER.R.mode') === 'crash', 'передержал штангу на груди — придавило');
+
+// 5в. Шкала попадания внизу: в зелёном повтор дешевле, рано и поздно — дороже, но засчитывается; выше шкалы — не считается
+await ev('ER.S.gym = "school"; ER.S.chest = 0; ER.S.arms = 0; ER.startSet(40, 20, false)');
+r = await ev(`(() => {
+  const up = () => { ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && ER.R.mode === 'lift'; i++) ER.step(1/60); };
+  const down = (to) => { ER.hold(false); for (let i = 0; i < 300 && ER.R.pos > to; i++) ER.step(1/60); };
+  const o = {}; up();
+  down(0); ER.step(1/60); let f0 = ER.R.fat; up(); o.perfect = ER.R.fat - f0;
+  down(0.3); f0 = ER.R.fat; up(); o.early = ER.R.fat - f0;
+  down(0); ER.step(0.4); f0 = ER.R.fat; up(); o.late = ER.R.fat - f0;
+  down(0.7); f0 = ER.R.reps; up(); o.high = ER.R.reps - f0;
+  o.hits = ER.R.hits; o.reps = ER.R.reps; o.mode = ER.R.mode; return o; })()`);
+log('  шкала:', JSON.stringify(r, (k, v) => typeof v === 'number' ? +v.toFixed(3) : v));
+check(r.hits.perfect >= 1 && r.hits.early >= 1 && r.hits.late >= 1 && r.reps === 4 && r.high === 0, 'рано, в зелёном и поздно — повтор засчитан; выше шкалы — нет');
+check(r.perfect < r.early && r.perfect < r.late, 'в зелёном повтор дешевле, чем рано или поздно');
+await ev('ER.hold(false); for (let i = 0; i < 300 && ER.R.pos > 0.15; i++) ER.step(1/60)'); await shot('25c-gauge');
+await ev('for (let i = 0; i < 60 && ER.R.pos > 0; i++) ER.step(1/60); ER.hold(true); ER.step(0.15)'); await shot('25d-gauge-hit'); await ev('ER.hold(false)');
+
+// 5г. Сброс прогресса
+await ev('ER.go("title"); ER.S.chest = 50; ER.S.cans = 333; ER.S.bans = { podval: 2 }; ER.step(0.05)');
+await click(62, 348); check(await ev('ER.state') === 'reset', 'кнопка «Сброс» → вопрос «Обнулить всё?»');
+await shot('26-reset');
+await click(520, 261); r = await ev('({ st: ER.state, chest: ER.S.chest, cans: ER.S.cans, bans: Object.keys(ER.S.bans).length, tut: ER.S.tutDone })');
+check(r.st === 'title' && r.chest === 0 && r.cans === 50 && r.bans === 0 && r.tut, 'сброс обнулил мышцы, банки и изгнания, обучение осталось (' + JSON.stringify(r) + ')');
+
+// 5д. Двор: пускают всегда, страховки нет, авария без изгнания; усы — только за банки
+await ev('ER.S.bans = { podval: 3, school: 3, glamour: 3 }; ER.S.cans = 10; ER.go("gyms"); ER.step(0.05)');
+await shot('27-gyms-4');
+await click(119, 328); check(!(await ev('ER.S.disguise.podval')) && await ev('ER.S.cans') === 10, 'без 40 банок в усах не пускают');
+await click(725, 328); check(await ev('ER.state === "plan" && ER.S.gym') === 'dvor', 'во двор пускают всегда');
+await click(420, 190); check(await ev('ER.state') === 'set' && await ev('ER.R.spotLeft') === 0, 'во дворе страховки нет — помочь некому');
+await ev(REP); await ev('ER.hold(true); ER.step(0.25)'); await shot('28-yard-set'); await ev('ER.hold(false); ER.step(0.3)');
+await ev('ER.crash(); ER.step(4.2)'); await shot('29-yard-crash');
+check(!(await ev('ER.S.bans.dvor')), 'авария во дворе — никто не выгоняет');
+await click(353, 238); check(await ev('ER.state') === 'plan', 'после аварии во дворе — сразу ещё подход');
+
+// 5е. Реакция зала на выполненный план
+const react = async (gym, word, target, reps, name) => {
+  await ev(`ER.S.gym = "${gym}"; ER.startSet(50, ${target}, false); ER.R.word = "${word}"; ER.R.reps = ${reps}; ER.R.gains = 10; ER.rackBar(); ER.step(1); ER.step(1.4)`);
+  if (name) await shot(name);
+  return ev('({ react: ER.DONE.react, bonus: ER.DONE.reactCans })');
+};
+r = await react('school', 'ХАЛЯВА', 3, 3, '30-react-laugh'); check(r.react === 'laugh' && r.bonus === 0, 'халяву закрыл — зал смеётся');
+r = await react('school', 'НОРМ', 4, 4, ''); check(r.react === null, 'норм закрыл — без реакции');
+r = await react('podval', 'ОБОСРЁШЬСЯ', 5, 5, '31-react-respect'); check(r.react === 'respect' && r.bonus === 20, 'тяжёлый план — уважение, +20 банок');
+r = await react('glamour', 'НОРМ', 4, 7, '32-react-machine'); check(r.react === 'machine' && r.bonus === 40, 'сильно сверх плана — «ты машина», +40 банок');
+r = await react('dvor', 'ОБОСРЁШЬСЯ', 5, 9, ''); check(r.react === null, 'во дворе реагировать некому');
 
 // 6. Громкость и музыка (эхо зала и музыка считаются в фоне)
 await ev('ER.pause(false)'); await sleep(3500);
