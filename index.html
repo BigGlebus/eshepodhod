@@ -7,11 +7,11 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#16181C">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ещё разок!">
+<meta name="apple-mobile-web-app-title" content="Ещё подход!">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<title>Ещё разок!</title>
+<title>Ещё подход!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Oswald:wght@500;600;700&family=Rubik+Mono+One&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -25,13 +25,13 @@
 </style>
 </head>
 <body>
-<canvas id="c" aria-label="Игра «Ещё разок!»"></canvas>
-<div id="rotate"><b>ЕЩЁ РАЗОК!</b>Поверни телефон горизонтально</div>
+<canvas id="c" aria-label="Игра «Ещё подход!»"></canvas>
+<div id="rotate"><b>ЕЩЁ ПОДХОД!</b>Поверни телефон горизонтально</div>
 <script>
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v11';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -63,13 +63,13 @@ const FORCE_MUTE = QS.has('mute');
 
 /* ================= сохранение ================= */
 const SAVE_KEY = 'eshche-razok-save-v1';
-const DEF = { chest: 0, arms: 0, cans: 50, energy: 100, gym: 'dvor', bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', muted: false, voiceOff: {}, music: true };
+const DEF = { chest: 0, arms: 0, cans: 50, energy: 100, gym: 'dvor', tips: {}, tutEver: false, broOpen: false, club100: false, bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', muted: false, voiceOff: {}, music: true };
 const fresh = () => JSON.parse(JSON.stringify(DEF));
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') return Object.assign(fresh(), s); } catch (e) { /* нет хранилища */ } return fresh(); })();
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
 const buildOf = (s) => Math.min(3.2, 0.4 + (s.chest + s.arms) / 60);
 const capacity = () => 45 + S.chest * 0.55 + S.arms * 0.25;
-const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['КАЧОК', 1.6], ['ШКАФ', 2.4], ['ЛЕГЕНДА', 3.2]];
+const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['ШКАФ', 1.6], ['МАШИНА', 2.4], ['ЛЕГЕНДА', 3.2]];
 function stageOf(b) { let i = 0; while (i < STAGES.length - 2 && b >= STAGES[i + 1][1]) i++; return { i, name: STAGES[i][0], from: STAGES[i][1], to: STAGES[i + 1][1], next: STAGES[i + 1][0] }; }
 
 /* ================= качалки и люди ================= */
@@ -1146,7 +1146,10 @@ let state = 'title', stateT = 0;
 let R = null, DONE = null, PLANS = null, briefNext = 'plan', soundHit = { id: '', t: -9 };
 function go(st) { state = st; stateT = 0; }
 const BRO_PRICE = 50;     // мотивация за банки протеина
-const MORE_K = 3;         // «Ещё разок!»: следующий повтор растит мышцы втрое
+const MORE_K = 1.5;       // «Ещё разок!»: следующий повтор растит мышцы в полтора раза
+const LEGEND_K = 3;       // дожатый тапами (или мотиватором) повтор
+// Рост за один подход не больше доли текущей стадии: так на стадию уходит минимум 3–4 подхода (дрищ — 2).
+const growCap = (st) => (st.to - st.from) * 60 * (st.i === 0 ? 0.6 : 0.28);
 // Баланс: повторов мало, каждый дорогой. Нагрузка = вес / рабочий вес.
 const costFor = (load) => 0.2 * Math.pow(load, 1.5);
 const baseGain = (load) => 1.0 * Math.pow(load, 1.2);
@@ -1163,7 +1166,7 @@ function makePlans() {
   const cap = capacity();
   return [['ЛЕГКО', 0.8, 3], ['РАБОЧИЙ', 1.0, 4], ['НА ГРАНИ', 1.15, 5]].map(([name, k, reps]) => {
     const weight = Math.max(20, Math.round(k * cap / 5) * 5);
-    const fc = forecast(weight / cap, reps); fc.gain = Math.round(fc.gain * newbieK());
+    const fc = forecast(weight / cap, reps); fc.gain = Math.round(Math.min(growCap(stageOf(buildOf(S))), fc.gain * newbieK()));
     return { name, weight, reps, fc };
   });
 }
@@ -1188,12 +1191,12 @@ const prepBlocked = (p) => S.cans < p.price ? 'МАЛО БАНОК' : !p.food &&
 function pickPrep(id) {
   const p = PREPS.find((x) => x.id === id); if (!p || !PREP_FOR || prepBlocked(p)) return;
   S.cans -= p.price; if (p.food) S.energy = ENERGY_MAX;
-  save(); startSet(PREP_FOR.weight, PREP_FOR.reps, false, id);
+  save(); startSet(PREP_FOR.weight, PREP_FOR.reps, !S.tutDone, id);   // первый подход — обучающий
 }
 function startSet(weight, target, tut, prep = 'none') {
   // самочувствие каждый раз своё (±10%), и каждый повтор чуть разный — запас сил точно не угадать
   const load = weight / capacity(), form = 0.9 + Math.random() * 0.2, pf = PREP_FX[prep] || PREP_FX.none;
-  if (!tut) { S.energy = Math.max(0, S.energy - ENERGY_COST); save(); }   // подход отнимает энергию
+  S.energy = Math.max(0, S.energy - ENERGY_COST); if (GYMS[S.gym].stage === 3) S.broOpen = true; save();   // подход отнимает энергию; в «Железяке» открывается мотивация
   R = { weight, target, tut, load, form, prep, gainK: pf.gainK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: GYMS[S.gym].alone ? 0 : 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
@@ -1212,10 +1215,11 @@ function holding() { for (const v of PTR.values()) if (v === 'hold') return true
 function completeRep(kind) {
   const z = zoneMult(R.fat), base = baseGain(R.load), k = R.bonus || 1, kTxt = k > 1 ? '  ×' + k : '';
   R.armed = false; R.atTop = true; R.bonus = 0;
-  if (kind === 'legend') { R.reps += 1; R.legend++; R.gains += base * 5 * k; fx('ЛЕГЕНДА ×5' + kTxt, P.yellow, 34, 120); play('cheer'); play('clank'); bark('legend'); R.shake = 0.25; }
+  if (kind === 'legend') { R.reps += 1; R.legend++; R.gains += base * LEGEND_K * k; fx('ЛЕГЕНДА ×' + LEGEND_K + kTxt, P.yellow, 34, 120); play('cheer'); play('clank'); bark('legend'); R.shake = 0.25; }
   else if (kind === 'spot') { R.reps += 0.5; R.spotted++; R.gains += base * z * 0.5 * k; fx('+½' + kTxt, P.text, 30); play('clank'); }
   else {
     R.reps += 1; if (z === 2) R.red++; R.gains += base * z * k;
+    tip('catch');   // первый повтор: как ловить штангу внизу
     const m = z * k;
     fx(m > 1 ? '+1  ×' + (Math.round(m * 10) / 10) : '+1', z === 2 ? P.bad : z > 1 || k > 1 ? P.yellow : P.text, z === 2 || k > 1 ? 30 : 26); play('clank');
   }
@@ -1236,8 +1240,12 @@ function enterPush() {
   // шаурма: примерно в каждом третьем дожиме живот сдаётся в случайный момент
   R.shawaAt = R.prep === 'shawa' && (FORCE_SHAWA ?? Math.random() < 0.35) ? 0.4 + Math.random() * 1.4 : -1;
   if (R.call) { R.call.end = 0; R.bark = null; return; }   // ещё не договорил с прошлого раза
-  const callNow = R.spotLeft > 0 && !R.tut && (FORCE_CALL ?? Math.random() < 0.5);
-  if (callNow) { R.call = { t: 0, end: 0 }; R.bark = null; play('ring'); }
+  // первый дожим рядом с соседом — показываем страховку, и телефон гарантированно молчит
+  const firstSpot = R.spotLeft > 0 && !S.tips.spotpush;
+  const callNow = R.spotLeft > 0 && !R.tut && !firstSpot && (FORCE_CALL ?? Math.random() < 0.5);
+  tip('push'); if (firstSpot) tip('spotpush');
+  if (S.broOpen && !R.broUsed) tip('bro');
+  if (callNow) { R.call = { t: 0, end: 0 }; R.bark = null; play('ring'); tip('call'); }
   else if (R.spotLeft > 0) bark('help'); else R.bark = null;
 }
 function pushTap(x, y) {
@@ -1281,7 +1289,7 @@ const machineOver = (target) => Math.max(3, Math.ceil(target * 0.5));
 const REACT_CANS = { respect: 20, machine: 40 };
 function finishSet() {
   const old = buildOf(S), planDone = R.reps >= R.target;
-  const total = R.gains * (planDone ? 1.25 : 1) * R.gainK * newbieK();
+  const total = Math.min(growCap(stageOf(old)), R.gains * (planDone ? 1.25 : 1) * R.gainK * newbieK());
   const chestG = total * 0.7, armsG = total * 0.3;
   const cansG = Math.round(Math.floor(R.reps) * 4 + R.red * 3 + R.legend * 12 + (planDone ? 15 : 0));
   S.chest += chestG; S.arms += armsG; S.cans += cansG; S.sets++;
@@ -1300,6 +1308,11 @@ function finishSet() {
     else if (R.word === 'СМЕЛО' || R.word === 'ОБОСРЁШЬСЯ') react = 'respect';
   }
   const reactCans = REACT_CANS[react] || 0; S.cans += reactCans;
+  const onDone = () => state === 'done' && stateT > 1.6;
+  if (planDone && R.weight >= 100 && !S.club100) {
+    S.club100 = true;
+    notice({ id: 'club100', title: 'ПОЗДРАВЛЯЕМ!', text: 'Ты теперь в клубе «За 100»: рабочий подход на ' + R.weight + ' кг закрыт. Таких во дворе по пальцам пересчитать.', when: onDone, big: 'КЛУБ «ЗА 100»' });
+  }
   // тестостерон: допинг-контроль ловит каждого третьего (во дворе не проверяют)
   const doped = R.prep === 'test' && !GYMS[S.gym].alone && (FORCE_DOPE ?? Math.random() < 1 / 3);
   if (doped) { S.bans[S.gym] = 3; delete S.disguise[S.gym]; }
@@ -1310,6 +1323,7 @@ function finishSet() {
   if (stageOf(nb).i > stageOf(old).i) {
     const o = OUTFITS.find((x) => x.stage === stageOf(nb).i); if (o) { S.outfit = o.id; newOutfit = o.name; save(); CACHE.clear(); }
     newGym = GYM_IDS.find((id) => GYMS[id].stage === stageOf(nb).i) || null;
+    if (newGym) { const ng = newGym; notice({ id: 'newgym', title: 'ОТКРЫЛАСЬ НОВАЯ КАЧАЛКА', text: GYMS[ng].name + '. ' + GYMS[ng].perk + '. Теперь тебя туда пускают.', when: () => state === 'done' && stateT > 1.6, alt: { label: 'ПОЙТИ ТУДА', fn: () => { S.gym = ng; save(); goPlan(); } } }); }
   }
   let quote;
   if (R.reps === 0) quote = 'Это что было? Даже не разогрелся.';
@@ -1405,7 +1419,7 @@ function updateSet(dt) {
         if (R.cramp.t >= 0.8) R.cramp = null;
       }
       R.pos += dp; R.fat = Math.min(1, R.fat + R.cost * R.repK * R.repMul * dp);
-      if (R.fat >= 0.6 && !R.fogSaid) { R.fogSaid = true; if (R.tut) fx('ШКАЛА СПРЯТАЛАСЬ', P.yellow, 24, 150); }
+      if (R.fat >= 0.6 && !R.fogSaid) { R.fogSaid = true; tip('yellow'); if (R.tut) fx('ШКАЛА СПРЯТАЛАСЬ', P.yellow, 24, 150); }
       if (R.fat >= 0.85 && !R.redSaid) { R.redSaid = true; bark('red'); }
       // штанга встаёт, только оторвавшись от груди, — иначе дожим начинался бы сразу с аварии
       if (R.fat >= 1 && R.pos >= 0.22 && R.pos < 1) enterPush();
@@ -1633,7 +1647,7 @@ function drawAsk() {
 }
 // Кнопка мотивации (банки протеина).
 function broBtn(pushing) {
-  if (R.broUsed || R.mode !== 'push') return;   // кнопка появляется только в дожиме
+  if (!S.broOpen || R.broUsed || R.mode !== 'push') return;   // только в дожиме и только после первого визита в «Железяку»
   const x = 628, y = 10, w = 154, h = 38, can = S.cans >= BRO_PRICE, hotB = can && pushing;
   if (hotB) { g.save(); g.strokeStyle = 'rgba(244,193,46,.55)'; g.lineWidth = 3; const k2 = (R.t * 2) % 1; rrPath(g, x - 4 - k2 * 6, y - 4 - k2 * 6, w + 8 + k2 * 12, h + 8 + k2 * 12, 24); g.stroke(); g.restore(); }
   g.save(); g.globalAlpha = can ? 1 : 0.45;
@@ -1759,14 +1773,14 @@ function drawTitle() {
     drawSetBg(c, id); c.fillStyle = 'rgba(10,11,14,.38)'; c.fillRect(0, 0, W, H);
     person(c, 196, 380, 1.18, Object.assign(playerLook(), { mood: 'calm', arms: 'hips' }));
   });
-  textOl(g, 'ЕЩЁ РАЗОК!', 612, 92, font(400, 46, FF.logo), P.yellow, 10, 'center');
+  textOl(g, 'ЕЩЁ ПОДХОД!', 612, 92, font(400, 44, FF.logo), P.yellow, 10, 'center');
   g.save(); g.beginPath(); rrPath(g, 432, 108, 360, 12, 2); g.clip(); for (let x = 420; x < 800; x += 24) { g.fillStyle = P.yellow; g.beginPath(); g.moveTo(x, 120); g.lineTo(x + 12, 108); g.lineTo(x + 24, 108); g.lineTo(x + 12, 120); g.fill(); } g.restore();
   const st = stageOf(b);
   box(g, 452, 128, 320, gymOpen(id) ? 52 : 72, 12, 'rgba(14,15,19,.72)');
   text(g, GYMS[id].name + (disg ? ' · в усах' : ''), 612, 146, font(500, 15, FF.body), P.text, 'center');
   text(g, 'Стадия: ' + st.name + ' · жим ~' + Math.round(capacity()) + ' кг', 612, 168, font(400, 14, FF.body), P.dim, 'center');
   if (!gymOpen(id)) text(g, gymUnlocked(id) ? 'Отсюда тебя выгнали — выбери другую качалку' : 'Сюда пускают со стадии ' + STAGES[GYMS[id].stage][0] + ' — иди в другую', 612, 190, font(500, 14, FF.body), P.bad, 'center');
-  btn(492, 204, 240, 54, 'ИГРАТЬ  ▸', 'primary', () => { goFullscreen(); if (!S.tutDone) { briefNext = 'tut'; go('brief'); } else goPlan(); }, 24);
+  btn(492, 204, 240, 54, 'ИГРАТЬ  ▸', 'primary', () => { goFullscreen(); goPlan(); }, 24);
   btn(492, 272, 116, 42, 'КАЧАЛКИ', 'ghost', () => go('gyms'), 17);
   btn(616, 272, 116, 42, 'КАК ИГРАТЬ', 'ghost', () => { briefNext = 'plan'; go('brief'); }, 17);
   iconBtn(12, 10, S.muted ? 'mute' : 'sound', () => setMuted(!S.muted));
@@ -1779,7 +1793,8 @@ function drawTitle() {
 }
 // Сброс прогресса: мышцы, рекорд, банки, изгнания и усы — как в начале; звук и пройденное обучение остаются.
 function resetProgress() {
-  const keep = { muted: S.muted, voiceOff: S.voiceOff, music: S.music, tutDone: S.tutDone, pushSeen: S.pushSeen };
+  // после сброса обучение начинается заново, но его можно пропустить — раз уже проходил
+  const keep = { muted: S.muted, voiceOff: S.voiceOff, music: S.music, tutEver: S.tutEver || S.tutDone };
   S = Object.assign(fresh(), keep); save(); CACHE.clear(); go('title');
 }
 function drawReset() {
@@ -1789,7 +1804,7 @@ function drawReset() {
   textOl(g, 'ОБНУЛИТЬ ВСЁ?', 422, 136, font(400, 26, FF.logo), P.red, 6, 'center');
   text(g, 'Мышцы, рекорд, банки, изгнания и усы —', 422, 172, font(500, 15, FF.body), P.text, 'center');
   text(g, 'как в самом начале. Вернуть будет нельзя.', 422, 194, font(500, 15, FF.body), P.text, 'center');
-  text(g, 'Настройки звука и пройденное обучение останутся.', 422, 216, font(400, 13, FF.body), P.dim, 'center');
+  text(g, 'Звук останется. Обучение начнётся заново — его можно будет пропустить.', 422, 216, font(400, 13, FF.body), P.dim, 'center');
   btn(236, 238, 176, 46, 'ОТМЕНА', 'ghost', () => go('title'), 18);
   btn(432, 238, 176, 46, 'ОБНУЛИТЬ', 'danger', resetProgress, 18);
 }
@@ -1813,8 +1828,7 @@ function drawBrief() {
     ['tap', 'Штанга встала — тапай часто, это дожим. Или зови страховку.'], ['poo', 'Живот не железный. Перегнёшь — авария и позор.']];
   tips.forEach(([k, s], i) => { const y = 78 + i * 43; box(g, 270, y - 18, 548, 36, 11, P.ui2); tipIcon(k, 296, y); text(g, s, 324, y + 5, font(500, 14.5, FF.body), P.text, 'left'); });
   const tut = briefNext === 'tut';
-  if (tut) text(g, 'Первая тренировка: 40 кг × 4', 270, 362, font(700, 20, FF.hand), '#E9DFC6', 'left');
-  btn(596, 334, 222, 44, tut ? 'ПОНЯЛ, ЖМЁМ  ▸' : 'ПОНЯТНО  ▸', 'primary', () => { if (tut) startSet(40, 4, true); else goPlan(); }, 18);
+  btn(596, 334, 222, 44, 'ПОНЯТНО  ▸', 'primary', () => goPlan(), 18);
 }
 function drawPlan() {
   panelBg();
@@ -1833,7 +1847,7 @@ function drawPlan() {
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
     hot(x, y, w, h, () => { PREP_FOR = p; go('prep'); });
   });
-  text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
+  if (S.broOpen) text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
   text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 360, font(700, 20, FF.hand), '#E9DFC6', 'left');
   text(g, 'Тапни по плану, чтобы начать', 820, 360, font(400, 13, FF.body), P.dim, 'right');
 }
@@ -1957,7 +1971,7 @@ function drawDone() {
   box(g, 412, 12, 420, 366, 18, 'rgba(23,25,30,.95)', 'rgba(244,242,236,.15)', 1.5);
   text(g, d.planDone ? 'ПОДХОД ЗАКРЫТ' : 'ПОДХОД НЕ ДОЖАТ', 432, 48, font(700, 26, FF.head), d.planDone ? P.text : P.bad, 'left');
   text(g, 'Жим ' + d.weight + ' кг · план ' + d.target + (d.tut ? ' · первая тренировка' : ''), 432, 70, font(400, 14, FF.body), P.dim, 'left');
-  const tiles = [[repLabel(d.reps) || '0', d.over ? 'повторов, сверх плана ' + d.over : d.spotted ? 'повторов, страховка ' + d.spotted : 'повторов', P.text], [String(d.red), 'в красной зоне ×2', P.bad], [String(d.legend), 'дожимов ×5', P.yellow]];
+  const tiles = [[repLabel(d.reps) || '0', d.over ? 'повторов, сверх плана ' + d.over : d.spotted ? 'повторов, страховка ' + d.spotted : 'повторов', P.text], [String(d.red), 'в красной зоне ×2', P.bad], [String(d.legend), 'дожимов ×' + LEGEND_K, P.yellow]];
   tiles.forEach(([n, l, col], i) => { const x = 432 + i * 132; box(g, x, 82, 122, 58, 12, P.ui2); text(g, n, x + 12, 116, font(700, 28, FF.head), col, 'left'); text(g, l, x + 12, 132, font(400, 11, FF.body), P.dim, 'left'); });
   text(g, 'РОСТ МЫШЦ', 432, 164, font(600, 13, FF.head), P.dim, 'left');
   [['Грудь', d.chestG, P.blue], ['Руки', d.armsG, P.yellow]].forEach(([n, v, col], i) => {
@@ -2009,11 +2023,73 @@ function drawGyms() {
   });
 }
 
+/* ================= подсказки тренера ================= */
+// Каждая подсказка ставит игру на паузу и ждёт «ПОНЯЛ». Обучающие показываются один раз (S.tips);
+// уведомления (новая качалка, клуб «За 100») — по событию. Пропустить обучение можно, только если уже проходил.
+const gaugeY = () => toScreen(handPos(0, R ? R.build : 1))[1] + 34;
+const TIPS = {
+  energy: { tut: true, title: 'ЭНЕРГИЯ', text: 'Это энергия. Каждый подход отнимает 30, сама она не восстанавливается — перед качалкой подзаряжайся едой.', target: () => [680, 12, 72, 36] },
+  plans: { tut: true, title: 'ВЫБОР ПЛАНА', text: 'Три плана: ЛЕГКО, РАБОЧИЙ и НА ГРАНИ. Чем тяжелее — тем больше рост мышц и банок, но выше риск обосраться. Прогноз — на карточке.', target: () => [24, 70, 796, 238] },
+  prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Шаурма и бананы с творогом восстанавливают энергию, креатин и тестостерон дают бонус. У всего, кроме бананов, есть побочка — читай красные строчки.', target: () => [186, 66, 312, 300] },
+  lift: { tut: true, title: 'КАК ЖАТЬ', text: 'Держи палец на экране — штанга идёт вверх. Дошла до верха — отпусти палец. Это повтор.', target: () => { const b = R ? R.build : 1, t = toScreen(handPos(1, b))[1], bt = toScreen(handPos(0, b))[1]; return [356, t - 28, 48, bt - t + 44]; } },
+  catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Отпусти — штанга опустится. Внизу появится шкала: жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. На груди штангу не держи.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
+  yellow: { tut: true, title: 'ЖЁЛТАЯ ЗОНА', text: 'Каждый повтор теперь растит мышцы ×1,5. Но шкала сил спряталась — дальше смотри на лицо, дрожь и пульс.', target: () => [782, 58, 36, 294] },
+  push: { tut: true, title: 'ДОЖИМ', text: 'Силы кончились — штанга встала. Тапай по экрану часто, чтобы дожать: такой повтор засчитается ×3. Бурлометр — это живот: перегнёшь — обосрёшься.', target: () => [520, 80, 140, 100] },
+  spot: { title: 'ЗДЕСЬ ЕСТЬ СОСЕД', text: 'Кнопка с ладонью — страховка. Раз за подход сосед поможет дожать штангу, засчитается половина повтора.', target: () => [10, 310, 68, 68] },
+  spotpush: { title: 'ЗОВИ СТРАХОВКУ', text: 'Штанга встала — жми «СТРАХОВКА», сосед поможет. Только иногда он болтает по телефону — тогда не дождёшься, тапай сам.', target: () => [10, 310, 68, 68] },
+  call: { title: 'СОСЕД НА ТЕЛЕФОНЕ', text: 'Сосед болтает по телефону и подстраховать не может. Тапай сам!', target: () => [18, 64, 210, 322] },
+  bro: { title: 'МОТИВАЦИЯ', text: 'Фишка «Железяки»: МОТИВАЦИЯ за 50 банок. Выбегает здоровяк — и штанга гарантированно уходит наверх. Только в дожиме, раз за подход.', target: () => [622, 4, 166, 50] },
+};
+let TIP = null, AUTO_TIPS = false; const TIPQ = [];
+function tip(id) {
+  if (S.tips[id] || (TIP && TIP.id === id) || TIPQ.some((q) => q.id === id)) return false;
+  TIPQ.push(Object.assign({ id }, TIPS[id])); nextTip(); return true;   // игра встаёт ровно в момент события
+}
+function notice(o) { TIPQ.push(Object.assign({ notice: true }, o)); nextTip(); }
+function closeTip() { if (!TIP) return; if (!TIP.notice) { S.tips[TIP.id] = true; save(); } TIP = null; }
+function skipTutorial() { for (const id of Object.keys(TIPS)) S.tips[id] = true; save(); TIP = null; for (let i = TIPQ.length - 1; i >= 0; i--) if (!TIPQ[i].notice) TIPQ.splice(i, 1); }
+function nextTip() {
+  if (TIP || !TIPQ.length) return;
+  const i = TIPQ.findIndex((q) => !q.when || q.when()); if (i < 0) return;
+  TIP = TIPQ.splice(i, 1)[0]; TIP.t = 0;
+  if (AUTO_TIPS) closeTip();
+}
+// подсказки по экрану: что видно — о том и рассказываем
+function tipTriggers() {
+  if (state === 'plan') { tip('energy'); tip('plans'); }
+  else if (state === 'prep') tip('prep');
+  else if (state === 'set' && R && R.mode === 'lift' && !R.started && R.t > 0.5) { tip('lift'); if (R.spotLeft > 0) tip('spot'); }
+}
+function holeRR(c, x, y, w, h, r) { c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function drawTip() {
+  const T = TIP, k = easeOut(T.t / 0.2), r = T.target ? T.target() : null;
+  g.save(); g.globalAlpha = k;
+  g.fillStyle = 'rgba(8,9,12,.68)'; g.beginPath(); g.rect(0, 0, W, H); if (r) holeRR(g, r[0] - 6, r[1] - 6, r[2] + 12, r[3] + 12, 12); g.fill('evenodd');
+  if (r) { const p = 0.5 + 0.5 * Math.sin(T.t * 6); g.strokeStyle = `rgba(244,193,46,${0.6 + 0.4 * p})`; g.lineWidth = 3 + p * 2; g.beginPath(); holeRR(g, r[0] - 8, r[1] - 8, r[2] + 16, r[3] + 16, 14); g.stroke(); }
+  const w = 580, tf = font(500, 15, FF.body), lines = wrapLines(T.text, w - 124, tf);
+  const h = 70 + lines.length * 20 + 50 + (T.big ? 34 : 0), x = (W - w) / 2;
+  const y = r && r[1] + r[3] / 2 < H / 2 ? H - h - 8 : 8;
+  box(g, x, y, w, h, 16, 'rgba(23,25,30,.98)', P.yellow, 2.5);
+  head(g, x + 52, y + 62, 30, { hair: 'cap', hairC: '#C8433A', mustache: true, mood: T.notice ? 'proud' : 'focus', ol: 2.5 });
+  text(g, T.notice ? T.title : 'ТРЕНЕР ВАЛЕРА · ' + T.title, x + 100, y + 32, font(700, 17, FF.head), P.yellow, 'left');
+  let yy = y + 58;
+  if (T.big) { textOl(g, T.big, x + 100, yy + 6, font(400, 24, FF.logo), P.yellow, 6, 'left'); yy += 34; }
+  lines.forEach((l, i) => text(g, l, x + 100, yy + i * 20, tf, P.text, 'left'));
+  const by = y + h - 50;
+  btn(x + w - 176, by, 160, 40, 'ПОНЯЛ  ▸', 'primary', closeTip, 17);
+  if (T.alt) btn(x + w - 346, by, 160, 40, T.alt.label, 'ghost', () => { closeTip(); T.alt.fn(); }, 16);
+  else if (T.tut && S.tutEver) btn(x + 100, by, 230, 40, 'ПРОПУСТИТЬ ОБУЧЕНИЕ', 'ghost', skipTutorial, 15);
+  g.restore();
+}
+
 /* ================= цикл и управление ================= */
 function update(dt) {
+  musicTick();
+  if (!TIP) tipTriggers();
+  nextTip();
+  if (TIP) { TIP.t += dt; return; }   // подсказка открыта — игра стоит
   stateT += dt;
   if (state === 'set' && R) updateSet(dt);
-  musicTick();
 }
 function draw() {
   BTN.length = 0;
@@ -2028,6 +2104,7 @@ function draw() {
   else if (state === 'reset') drawReset();
   else if (state === 'prep') drawPrep();
   else if (state === 'wardrobe') drawWardrobe();
+  if (TIP) { BTN.length = 0; drawTip(); }
 }
 const PTR = new Map(); let KEYHOLD = false;
 function toLogical(e) { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
@@ -2041,13 +2118,14 @@ cv.addEventListener('pointerdown', (e) => {
   e.preventDefault(); ensureAudio();
   const [x, y] = toLogical(e), b = hitBtn(x, y);
   if (b) { PTR.set(e.pointerId, 'btn'); play('tick', 0.5); b.fn(); return; }
+  if (TIP) return;   // пока открыта подсказка — жим не начинается
   PTR.set(e.pointerId, 'hold'); try { cv.setPointerCapture(e.pointerId); } catch (err) { /* нет */ }
   onPress(x, y);
 });
 const lift = (e) => { PTR.delete(e.pointerId); };
 cv.addEventListener('pointerup', lift); cv.addEventListener('pointercancel', lift); cv.addEventListener('lostpointercapture', lift);
 cv.addEventListener('contextmenu', (e) => e.preventDefault());
-window.addEventListener('keydown', (e) => { if (e.code !== 'Space' || e.repeat) return; e.preventDefault(); ensureAudio(); KEYHOLD = true; onPress(560, 280); });
+window.addEventListener('keydown', (e) => { if (e.code !== 'Space' || e.repeat) return; e.preventDefault(); ensureAudio(); if (TIP) { closeTip(); return; } KEYHOLD = true; onPress(560, 280); });
 window.addEventListener('keyup', (e) => { if (e.code === 'Space') KEYHOLD = false; });
 // свернули игру — звук и музыка замолкают, вернулись — продолжают
 document.addEventListener('visibilitychange', () => { if (document.hidden) { PTR.clear(); KEYHOLD = false; } if (A) { if (document.hidden) A.ctx.suspend().catch(() => {}); else A.ctx.resume().catch(() => {}); } });
@@ -2099,14 +2177,18 @@ window.ER = {
   get S() { return S; }, get R() { return R; }, get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
   pause(v) { PAUSED = v; }, go, goPlan, startSet, rackBar, callSpot, pushTap, crash,
   reset() { S = fresh(); save(); CACHE.clear(); go('title'); },
-  hold(v) { if (v) { PTR.set(-1, 'hold'); onPress(560, 280); } else PTR.delete(-1); },
-  tap(x = 560, y = 280) { onPress(x, y); },
+  hold(v) { if (v) { PTR.set(-1, 'hold'); if (!TIP) onPress(560, 280); } else PTR.delete(-1); },
+  tap(x = 560, y = 280) { if (!TIP) onPress(x, y); },
   step(sec, fps = 60) { const dt = 1 / fps; for (let i = 0; i < Math.round(sec * fps); i++) update(dt); draw(); },
   more(v) { answerMore(v); },
   forceCall(v) { FORCE_CALL = v; },
   forceCramp(v) { FORCE_CRAMP = v; }, forceDope(v) { FORCE_DOPE = v; }, forceShawa(v) { FORCE_SHAWA = v; }, gymOpen: (id) => gymOpen(id),
   heroLog() { return A && A.heroLog ? A.heroLog.slice() : []; },
   bro() { callBro(); },
+  get tipId() { return TIP ? TIP.id : null; }, get tipQueue() { return TIPQ.map((q) => q.id); },
+  closeTip, skipTutorial, autoTips(v) { AUTO_TIPS = v; if (v) { closeTip(); while (TIPQ.length) { TIP = TIPQ.shift(); closeTip(); } } },
+  tipBtn() { if (!TIP) return null; const b = BTN.find((x) => x.fn === closeTip); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
+  tipSkipBtn() { if (!TIP) return null; const b = BTN.find((x) => x.fn === skipTutorial); return b ? [b.x + b.w / 2, b.y + b.h / 2] : null; },
   // лист макетов мотиватора: все варианты BRO_LOOKS рядом (для tools/mockups-bro.mjs)
   mockBro() {
     const keys = Object.keys(BRO_LOOKS), CW = 330, CH = 470, c = document.createElement('canvas'), keep = BRO_LOOK, keepOl = OLD;

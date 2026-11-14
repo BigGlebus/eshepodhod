@@ -55,10 +55,10 @@ await sleep(2500); // шрифты
 await ev('window.dispatchEvent(new Event("resize"))');
 await ev('ER.pause(true); ER.reset(); ER.step(0.1)');
 const REP = `(() => { if (ER.R.mode === 'ask') return { mode: 'ask', reps: ER.R.reps, fat: +ER.R.fat.toFixed(2) };
-  ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && ER.R.mode === 'lift'; i++) ER.step(1/60);
+  ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && ER.R.mode === 'lift' && !ER.tipId; i++) ER.step(1/60);
   ER.hold(false);
-  if (ER.R.mode !== 'lift') return { mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2) };
-  for (let i = 0; i < 200 && ER.R.pos > 0; i++) ER.step(1/60); ER.step(1/60);
+  if (ER.R.mode !== 'lift' || ER.tipId) return { mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2), tip: ER.tipId };
+  for (let i = 0; i < 200 && ER.R.pos > 0 && !ER.tipId; i++) ER.step(1/60); ER.step(1/60);
   return { mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2) }; })()`;
 // «Ещё разок?»: в первый раз — снимок и настоящий тап по «ДАВАЙ!», дальше соглашаемся программно
 let askSeen = false;
@@ -67,24 +67,47 @@ async function rep() {
   if (r.mode !== 'ask') return r;
   if (!askSeen) {
     askSeen = true; await ev('ER.step(0.4)'); await shot('05b-ask');
-    await click(348, 233); check(await ev('ER.R.mode') === 'lift' && await ev('ER.R.bonus') === 3, '«Ещё разок?» → «ДАВАЙ!» включает ×3 на следующий повтор');
+    await click(348, 233); check(await ev('ER.R.mode') === 'lift' && await ev('ER.R.bonus') === 1.5, '«Ещё разок?» → «ДАВАЙ!» включает ×1,5 на следующий повтор');
   } else await ev('ER.more(true)');
   return { ...r, mode: 'lift' };
 }
 
-// 1. Старт и обучение — настоящими кликами по кнопкам
+// 1. Первый запуск: обучение. Каждая подсказка ставит игру на паузу и ждёт «ПОНЯЛ»
 await shot('01-title');
-await click(612, 231); check(await ev('ER.state') === 'brief', 'кнопка «Играть» → объяснение тренера');
-await shot('02-brief');
+const tipShots = { energy: '02-tip-energy', plans: '02b-tip-plans', prep: '02c-tip-prep', lift: '03-tip-lift', catch: '04-tip-catch', yellow: '05-tip-yellow', push: '06-tip-push' };
+const tipsSeen = [];
+async function closeTips() {
+  let t;
+  while ((t = await ev('ER.tipId'))) {
+    tipsSeen.push(t);
+    if (tipShots[t]) { await ev('ER.step(0.3)'); await shot(tipShots[t]); }   // окно подсказки проявляется за 0,2 с
+    const b = await ev('ER.tipBtn()'); await click(b[0], b[1]);
+  }
+}
+await click(612, 231); check(await ev('ER.state') === 'plan' && await ev('ER.tipId') === 'energy', '«Играть» → выбор плана, тренер сразу показывает энергию');
+check(!(await ev('ER.tipSkipBtn()')), 'в первый раз обучение не пропустить');
 const ai = await ev('ER.audioInfo()');
 check(ai && Object.keys(ai).filter((k) => k.startsWith('v_')).length === 4 && Object.entries(ai).filter(([k]) => k.startsWith('v_')).every(([, v]) => v.nan === 0 && v.peak > 0.2), '2 голоса × 2 дубля синтезированы без сбоев');
-await click(707, 356); check(await ev('ER.state') === 'set' && await ev('ER.R.tut') && await ev('ER.R.target') === 4, '«Понял, жмём» → обучающий подход 40 кг × 4');
-await ev('ER.step(0.9)'); await shot('03-set-start');
+await closeTips();
+check(tipsSeen.join() === 'energy,plans', 'подсказки про энергию и планы (' + tipsSeen.join() + ')');
+await click(150, 190); await closeTips();   // в обучении — лёгкий план, чтобы точно дошло до «Ещё разок?»
+check(tipsSeen.includes('prep'), 'на подготовке — подсказка про еду и добавки');
+await click(99, 338); check(await ev('ER.state') === 'set' && await ev('ER.R.tut') && await ev('ER.S.gym') === 'dvor', 'первый подход — обучающий, во дворе');
+await ev('ER.step(0.7)');
+const t0 = await ev('ER.R.t'); await ev('ER.hold(true); ER.step(1); ER.hold(false)');
+check(await ev('ER.tipId') === 'lift' && await ev('ER.R.t') === t0 && await ev('ER.R.pos') === 0, 'подсказка «как жать»: игра стоит, пока не нажмёшь «ПОНЯЛ»');
+await closeTips();
 let r; let n = 0;
-do { r = await rep(); n++; if (n === 3) { await ev('ER.hold(true); ER.step(0.25)'); await shot('04-press-green'); await ev('ER.hold(false); ER.step(0.8)'); } } while (r.mode === 'lift' && r.fat < 0.6 && n < 30);
-log('  после зелёной зоны:', JSON.stringify(r));
-await ev('ER.hold(true); ER.step(0.3)'); await shot('05-press-yellow'); await ev('ER.hold(false); ER.step(0.8)');
-do { r = await rep(); n++; } while (r.mode === 'lift' && n < 50);
+for (n = 0; n < 90; n++) {
+  await closeTips();
+  if (await ev('ER.R.mode') === 'push') break;
+  r = await rep();
+  if (n === 3) { await closeTips(); await ev('ER.hold(true); ER.step(0.25)'); await shot('04b-press'); await ev('ER.hold(false); ER.step(0.8)'); }
+}
+await closeTips();
+r = await ev('({ mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2) })');
+const ti = (id) => tipsSeen.indexOf(id);
+check(ti('catch') > 0 && ti('yellow') > ti('catch') && ti('push') > ti('yellow'), 'по ходу подхода: ловить внизу → жёлтая зона → дожим (' + tipsSeen.join() + ')');
 check(askSeen, 'после плана появился вопрос «Ещё разок?»');
 check(r.mode === 'push', 'усталость 100% → дожим (' + JSON.stringify(r) + ')');
 await ev('ER.R.pos = 0.4');   // штанга встала посередине — чтобы проверка не зависела от того, где именно кончились силы
@@ -94,7 +117,7 @@ const burl = await ev('ER.R.burl'); check(burl > 0.2 && burl < 1, 'тапы по
 check(await ev('ER.S.gym') === 'dvor' && await ev('ER.R.spotLeft') === 0, 'новичок начинает во дворе — страховки нет, дожимает сам');
 r = await ev(`(() => { ER.R.burl = 0.1; for (let i = 0; i < 80 && ER.R.mode === 'push'; i++) { ER.tap(600, 260); ER.step(0.08); } ER.step(0.3); return { mode: ER.R.mode, legend: ER.R.legend }; })()`);
 await shot('08-legend');
-check(r.mode === 'ask' && r.legend === 1, 'дожал тапами — легенда ×5, снова «Ещё разок?» (' + JSON.stringify(r) + ')');
+check(r.mode === 'ask' && r.legend === 1, 'дожал тапами — легенда ×3, снова «Ещё разок?» (' + JSON.stringify(r) + ')');
 await ev('ER.step(0.4)'); await click(533, 233); check(await ev('ER.R && ER.R.mode') === 'racked' || await ev('ER.state') === 'done', '«ХВАТИТ» ставит штангу');
 await ev('ER.step(1)'); check(await ev('ER.state') === 'done', 'итоги после стойки');
 await ev('ER.step(1.4)'); await shot('09-done');
@@ -102,7 +125,7 @@ const d1 = await ev('({ reps: ER.DONE.reps, over: ER.DONE.over, chest: +ER.DONE.
 log('  итоги обучения:', JSON.stringify(d1)); check(d1.tut && d1.chest > 0 && d1.over > 0, 'мышцы выросли, есть повторы сверх плана, обучение пройдено');
 
 // 2. План «на грани» и авария
-await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "podval"; ER.S.energy = 100');   // дальше герой — шкаф, открыты все залы
+await ev('ER.autoTips(true); ER.S.tips.spotpush = true; ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "podval"; ER.S.energy = 100');   // дальше герой — машина, открыты все залы; подсказки закрываются сами
 await click(705, 352); check(await ev('ER.state') === 'plan', '«Ещё подход» → выбор плана');
 await shot('10-plan');
 const plans = await ev('ER.PLANS.map((p) => p.weight + "×" + p.reps + " " + p.fc.word)'); log('  планы:', plans.join(' | '));
@@ -149,7 +172,7 @@ await click(252, 103); check(!(await ev('ER.S.voiceOff.yygh')), 'повторн�
 
 // 5. Прокачанный герой и мотиватор: только в дожиме, штанга гарантированно уходит наверх, силы не восстанавливаются
 await ev('ER.forceCall(false)');
-await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.S.cans = 200; ER.startSet(110, 6, false)');
+await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.S.cans = 200; ER.S.broOpen = true; ER.startSet(110, 6, false)');
 await ev(REP); await ev('ER.hold(true); ER.step(0.3)'); await shot('22-buff-set'); await ev('ER.hold(false); ER.step(0.6)');
 await click(705, 29); check(await ev('ER.R.mode') === 'lift' && await ev('ER.S.cans') === 200, 'вне дожима кнопки «Мотивация» нет');
 n = 0; do { r = await rep(); n++; } while (r.mode === 'lift' && n < 30);
@@ -192,8 +215,8 @@ await ev('for (let i = 0; i < 60 && ER.R.pos > 0; i++) ER.step(1/60); ER.hold(tr
 await ev('ER.go("title"); ER.S.chest = 50; ER.S.cans = 333; ER.S.bans = { podval: 2 }; ER.step(0.05)');
 await click(62, 348); check(await ev('ER.state') === 'reset', 'кнопка «Сброс» → вопрос «Обнулить всё?»');
 await shot('26-reset');
-await click(520, 261); r = await ev('({ st: ER.state, chest: ER.S.chest, cans: ER.S.cans, bans: Object.keys(ER.S.bans).length, tut: ER.S.tutDone, en: ER.S.energy, gym: ER.S.gym })');
-check(r.st === 'title' && r.chest === 0 && r.cans === 50 && r.bans === 0 && r.tut && r.en === 100 && r.gym === 'dvor', 'сброс обнулил мышцы, банки и изгнания, обучение осталось (' + JSON.stringify(r) + ')');
+await click(520, 261); r = await ev('({ st: ER.state, chest: ER.S.chest, cans: ER.S.cans, bans: Object.keys(ER.S.bans).length, tut: ER.S.tutEver && !ER.S.tutDone, en: ER.S.energy, gym: ER.S.gym })');
+check(r.st === 'title' && r.chest === 0 && r.cans === 50 && r.bans === 0 && r.tut && r.en === 100 && r.gym === 'dvor', 'сброс обнулил мышцы, банки и изгнания; обучение заново, но с пропуском (' + JSON.stringify(r) + ')');
 
 // 5д. Двор: пускают всегда, страховки нет, авария без изгнания; усы — только за банки
 await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.bans = { podval: 3, school: 3, glamour: 3 }; ER.S.cans = 10; ER.go("gyms"); ER.step(0.05)');
@@ -269,6 +292,35 @@ r = await ev(`(() => { ER.startSet(40, 3, false); ER.R.reps = 3; ER.R.gains = 4;
 check(Math.abs(r - 4 * 1.25 * 2 * 0.7) < 0.01, 'дрищ растёт вдвое быстрее (+' + r + ')');
 r = await ev(`(() => { ER.S.chest = 60; ER.S.arms = 20; const o = {}; for (const id of ['dvor', 'school', 'glamour', 'podval']) o[id] = ER.gymOpen(id); return o; })()`);
 check(r.dvor && r.school && r.glamour && !r.podval, 'качку открыты улица, школа и фитнес, «Железяка» — со шкафа (' + JSON.stringify(r) + ')');
+
+// 5к. Подсказки в залах: сосед, страховка без телефона, звонок, мотивация; уведомления; пропуск обучения
+await ev('ER.autoTips(false); ER.S.tips = { energy: true, plans: true, prep: true, lift: true, catch: true, yellow: true, push: true }; ER.S.tutDone = true; ER.S.bans = {}; ER.S.disguise = {}; ER.S.chest = 90; ER.S.arms = 40; ER.S.broOpen = false; ER.forceCall(true)');
+const PUSH = `(() => { ER.step(0.7); const pre = ER.tipId; if (pre) return { pre }; ER.R.fat = 0.995; ER.R.started = true; ER.hold(true); for (let i = 0; i < 300 && ER.R.mode === 'lift' && !ER.tipId; i++) ER.step(1/60); ER.hold(false); return { mode: ER.R.mode, tip: ER.tipId, call: !!ER.R.call, open: ER.S.broOpen }; })()`;
+await ev('ER.S.gym = "school"; ER.startSet(80, 20, false)');
+r = await ev(PUSH); check(r.pre === 'spot', 'первый раз с соседом — подсказка про страховку (' + JSON.stringify(r) + ')'); await ev('ER.step(0.3)'); await shot('41-tip-spot'); await ev('ER.closeTip()');
+r = await ev(PUSH); check(r.mode === 'push' && r.tip === 'spotpush' && !r.call, 'первый дожим с соседом: «зови страховку», телефон молчит (' + JSON.stringify(r) + ')');
+await ev('ER.step(0.3)'); await shot('42-tip-spotpush'); await ev('ER.closeTip()');
+await ev('ER.startSet(80, 20, false)'); r = await ev(PUSH); check(r.tip === 'call' && r.call, 'сосед впервые на телефоне — подсказка (' + JSON.stringify(r) + ')'); await ev('ER.closeTip(); ER.forceCall(false)');
+await ev('ER.startSet(80, 20, false)'); r = await ev(PUSH); check(!r.open && !r.tip, 'до «Железяки» мотивации нет (' + JSON.stringify(r) + ')');
+await ev('ER.S.gym = "podval"; ER.startSet(80, 20, false)'); r = await ev(PUSH); check(r.open && r.tip === 'bro', 'в «Железяке» мотивация открылась — подсказка (' + JSON.stringify(r) + ')');
+await ev('ER.step(0.3)'); await shot('43-tip-bro'); await ev('ER.closeTip()');
+r = await ev(`(() => { ER.S.chest = 26; ER.S.arms = 0; ER.S.gym = 'dvor'; ER.startSet(40, 3, false); ER.R.reps = 3; ER.R.gains = 5; ER.rackBar(); ER.step(1); ER.step(1.8); return { tip: ER.tipId, gym: ER.DONE.newGym }; })()`);
+check(r.tip === 'newgym' && r.gym === 'school', 'открылась новая качалка — уведомление (' + JSON.stringify(r) + ')');
+await ev('ER.step(0.3)'); await shot('44-tip-newgym'); await ev('ER.closeTip()');
+const CLUB = `(() => { ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = 'school'; ER.startSet(100, 3, false); ER.R.reps = 3; ER.R.gains = 5; ER.rackBar(); ER.step(1); ER.step(1.8); return { tip: ER.tipId, club: ER.S.club100 }; })()`;
+await ev('ER.S.club100 = false'); r = await ev(CLUB);
+check(r.tip === 'club100' && r.club, 'первый рабочий подход на 100 кг — «ты теперь в клубе за 100» (' + JSON.stringify(r) + ')');
+await ev('ER.step(0.3)'); await shot('45-tip-club100'); await ev('ER.closeTip()');
+r = await ev(CLUB); check(r.tip !== 'club100', 'клуб «За 100» поздравляет один раз');
+await ev('ER.closeTip(); ER.S.tips = {}; ER.S.tutEver = true; ER.S.tutDone = false; ER.go("title"); ER.goPlan(); ER.step(0.05)');
+check(await ev('ER.tipId') === 'energy' && !!(await ev('ER.tipSkipBtn()')), 'обучение уже проходил — можно пропустить');
+await ev('ER.step(0.3)'); await shot('46-tip-skip'); const sb = await ev('ER.tipSkipBtn()'); await click(sb[0], sb[1]);
+check(!(await ev('ER.tipId')) && await ev('ER.S.tips.push') === true, '«Пропустить обучение» убирает все подсказки');
+await ev('ER.autoTips(true)');
+
+// 5л. Прокачка: за подход — не больше доли стадии
+r = await ev(`(() => { ER.S.chest = 21; ER.S.arms = 9; ER.S.gym = 'school'; ER.startSet(50, 3, false); ER.R.reps = 9; ER.R.legend = 2; ER.R.gains = 200; ER.rackBar(); ER.step(1); return { grow: +(ER.DONE.chestG + ER.DONE.armsG).toFixed(2), up: ER.DONE.stageUp }; })()`);
+check(r.grow <= 42 * 0.28 + 0.01 && !r.up, 'даже очень сильный подход не перескакивает стадию (+' + r.grow + ')');
 
 // 6. Громкость и музыка (эхо зала и музыка считаются в фоне)
 await ev('ER.pause(false)'); await sleep(3500);
