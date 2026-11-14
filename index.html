@@ -88,7 +88,7 @@ const NPC = {
   girl: { build: 0.35, top: '#3FA88A', pants: '#2F3A55', hair: 'pony', hairC: '#6B3E26' },
   blogger: { build: 0.8, type: 'tee', top: '#7C5CC4', pants: '#2C3552', hair: 'buzz', hairC: '#C9A14A' },
   galya: { build: 1.6, type: 'robe', top: '#5C86C4', pants: '#5C86C4', shoe: '#3B3F47', hair: 'kerchief', hairC: '#C8433A', belly: true },
-  bro: { build: 4.3, skin: '#7E5136', top: '#2F6FD6', pants: '#1E1F24', shoe: '#2B2F3A', hair: 'bald', shorts: true, traps: true, veins: true, belt: true, wraps: true, ripped: true, stringer: true },
+  bro: { build: 4.3, skin: '#7E5136', top: '#2F6FD6', pants: '#1E1F24', shoe: '#2B2F3A', hair: 'bald', shorts: true, shortsLen: 50, traps: true, veins: true, belt: true, wraps: true, ripped: true, stringer: true },
   valera: { build: 1.6, type: 'jacket', top: '#2E56A8', pants: '#2E56A8', stripes: true, hair: 'cap', hairC: '#C8433A', mustache: true, whistle: true, belly: true },
 };
 // Варианты мотиватора: синяя майка-борцовка, рот закрыт. Какой берём — решает автор (BRO_LOOK).
@@ -98,7 +98,7 @@ const BRO_LOOKS = {
   c: { name: 'В · «Сжатые зубы»', top: '#173A8A', mood: 'clench' },
   d: { name: 'Г · «Шрам»', top: '#2F6FD6', trim: '#F4C12E', print: 'db', scar: true, mood: 'grim' },
 };
-let BRO_LOOK = 'a';
+let BRO_LOOK = 'c';   // согласован вариант В «Сжатые зубы»
 const broLook = (extra) => Object.assign({}, NPC.bro, BRO_LOOKS[BRO_LOOK], extra);
 const BARKS = {
   tolyan: { start: ['Работаем, братиш!', 'Мел возьми, скользко же'], idle: ['Братиш, ты долго ещё?', 'Ты там уснул?'], red: ['О, пошла работа!', 'Терпи, растёшь!'],
@@ -367,14 +367,16 @@ function person(c, x, y, s, o = {}) {
   const skin = sil || o.skin || P.skin, top = sil || o.top || P.tank, pants = sil || o.pants || P.pants, shoe = sil || o.shoe || P.white;
   const type = o.type || 'tank', legC = o.shorts ? skin : pants;
   c.save(); c.translate(x, y); c.scale(o.flip ? -s : s, s);
+  // у толстых ног круглый конец уходит ниже обычной кроссовки — тогда кроссовка ниже и выше, чтобы пятка не торчала
+  const shoeY = Math.max(-6, -12 + lw / 2), shoeRy = Math.max(6.5, lw * 0.36);
   blob(c, [
     { k: 'rr', x: -sw * 0.74, y: HIP - 4, w: sw * 1.48, h: 18, r: 6, c: pants },
     { k: 'line', p: [[-hip, HIP + 6], [-hip - 1, -10]], w: lw, c: legC },
     { k: 'line', p: [[hip, HIP + 6], [hip + 1, -10]], w: lw, c: legC },
-    { k: 'ell', x: -hip - 5, y: -6, rx: lw * 0.8, ry: 6.5, c: shoe },
-    { k: 'ell', x: hip + 5, y: -6, rx: lw * 0.8, ry: 6.5, c: shoe },
+    { k: 'ell', x: -hip - 5, y: shoeY, rx: lw * 0.8, ry: shoeRy, c: shoe },
+    { k: 'ell', x: hip + 5, y: shoeY, rx: lw * 0.8, ry: shoeRy, c: shoe },
   ], OLW);
-  if (o.shorts) blob(c, [{ k: 'rr', x: -sw * 0.8, y: HIP - 8, w: sw * 1.6, h: 36, r: 8, c: pants }], OLW);
+  if (o.shorts) blob(c, [{ k: 'rr', x: -sw * 0.8, y: HIP - 8, w: sw * 1.6, h: o.shortsLen || 36, r: 8, c: pants }], OLW);
   if (o.stripes && !sil) { c.save(); c.strokeStyle = P.stripe; c.lineWidth = 2.2; c.lineCap = 'round'; for (const sg of [-1, 1]) { c.beginPath(); c.moveTo(sg * (hip + lw * 0.32), HIP + 10); c.lineTo(sg * (hip + 1 + lw * 0.32), -16); c.stroke(); } c.restore(); }
   const neck = { k: 'line', p: [[0, SH - 4], [0, SH - 16]], w: 12 + b * 2.5, c: skin };
   const bodyParts = [neck];
