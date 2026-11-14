@@ -65,7 +65,7 @@ const FORCE_MUTE = QS.has('mute');
 const SAVE_KEY = 'eshche-razok-save-v1';
 const DEF = { chest: 0, arms: 0, cans: 50, energy: 100, gym: 'dvor', tips: {}, tutEver: false, broOpen: false, club100: false, bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', muted: false, voiceOff: {}, music: true };
 const fresh = () => JSON.parse(JSON.stringify(DEF));
-let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') return Object.assign(fresh(), s); } catch (e) { /* нет хранилища */ } return fresh(); })();
+let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') { const o = Object.assign(fresh(), s); if (!s.tips && s.tutDone) o.tutEver = true; /* старое сохранение с пройденным обучением — новые подсказки можно пропустить */ return o; } } catch (e) { /* нет хранилища */ } return fresh(); })();
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
 const buildOf = (s) => Math.min(3.2, 0.4 + (s.chest + s.arms) / 60);
 const capacity = () => 45 + S.chest * 0.55 + S.arms * 0.25;
