@@ -32,7 +32,7 @@ ws.addEventListener('message', (m) => {
   if (d.method === 'Runtime.exceptionThrown') errors.push('EXC ' + (d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text));
   if (d.method === 'Runtime.consoleAPICalled' && ['error', 'warning'].includes(d.params.type)) errors.push(d.params.type.toUpperCase() + ' ' + d.params.args.map((a) => a.value ?? a.description).join(' '));
   // открытая с диска страница не может загрузить звук и манифест (CORS для file://) — это ожидаемо
-  if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error' && !/obosralsya|lightweight|favicon|sw\.js|manifest|icon-|apple-touch/.test(d.params.entry.text + ' ' + (d.params.entry.url || ''))) errors.push('LOG ' + d.params.entry.text + ' ' + (d.params.entry.url || ''));
+  if (d.method === 'Log.entryAdded' && d.params.entry.level === 'error' && !/obosralsya|lightweight|final.wav|favicon|sw\.js|manifest|icon-|apple-touch/.test(d.params.entry.text + ' ' + (d.params.entry.url || ''))) errors.push('LOG ' + d.params.entry.text + ' ' + (d.params.entry.url || ''));
 });
 // у каждой команды браузеру тайм-аут: если что-то зависло, видно, на каком шаге
 const send = (method, params = {}) => new Promise((r, rej) => {
@@ -335,6 +335,17 @@ await ev('ER.autoTips(true)');
 // 5л. Прокачка: за подход — не больше доли стадии
 r = await ev(`(() => { ER.S.chest = 21; ER.S.arms = 9; ER.S.gym = 'school'; ER.startSet(50, 3, false); ER.R.reps = 9; ER.R.legend = 2; ER.R.gains = 200; ER.rackBar(); ER.step(1); return { grow: +(ER.DONE.chestG + ER.DONE.armsG).toFixed(2), up: ER.DONE.stageUp }; })()`);
 check(r.grow <= 42 * 0.28 + 0.01 && !r.up, 'даже очень сильный подход не перескакивает стадию (+' + r.grow + ')');
+
+// 5м. ЛЕГЕНДА: последняя стадия → «Ты доказал всем» → «НАГРАДА?» → запись → главное меню; дальше растёт только вес
+r = await ev(`(() => { ER.autoTips(true); ER.S.chest = 110; ER.S.arms = 50; ER.S.gym = 'school'; ER.S.bans = {}; ER.startSet(60, 3, false); ER.R.reps = 3; ER.R.gains = 30; ER.rackBar(); ER.step(1); ER.step(2.5); return { st: ER.state, up: ER.DONE.legendUp, stage: ER.stage(), flag: ER.S.legend }; })()`);
+check(r.st === 'legend' && r.up && r.stage === 'ЛЕГЕНДА' && r.flag, 'дорос до ЛЕГЕНДЫ — экран «ты доказал всем, что ты легенда» (' + JSON.stringify(r) + ')');
+await ev('ER.step(0.6)'); await shot('47-legend');
+await click(600, 264); check(await ev('ER.legendPlay'), '«НАГРАДА?» — играет запись');
+await ev('ER.step(1)'); await shot('48-legend-reward');
+await ev('ER.step(3)'); check(await ev('ER.state') === 'title' && !(await ev('ER.legendPlay')), 'запись доиграла — главное меню');
+await shot('49-title-legend');
+r = await ev(`(() => { const cap0 = ER.S.chest; ER.startSet(60, 3, false); ER.R.reps = 3; ER.R.gains = 10; ER.rackBar(); ER.step(1); ER.step(3); return { st: ER.state, up: ER.DONE.stageUp, legendUp: ER.DONE.legendUp, grow: ER.S.chest - cap0, stage: ER.stage() }; })()`);
+check(r.st === 'done' && !r.up && !r.legendUp && r.grow > 0 && r.stage === 'ЛЕГЕНДА', 'дальше — ЛЕГЕНДА без новых стадий, но мышцы и вес растут (' + JSON.stringify(r) + ')');
 
 // 6. Громкость и музыка (эхо зала и музыка считаются в фоне)
 await ev('ER.pause(false)'); await sleep(3500);

@@ -2,8 +2,8 @@
 // Игра открывается из кэша мгновенно и без интернета; если есть сеть, новая версия
 // тихо подкачивается в фоне и включится при следующем запуске.
 // При каждом обновлении игры меняй номер версии ниже — и APP_VERSION в начале index.html.
-const VERSION = 'eshche-razok-v13';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './sounds/obosralsya.wav', './sounds/lightweight.wav'];
+const VERSION = 'eshche-razok-v14';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './sounds/obosralsya.wav', './sounds/lightweight.wav', './sounds/final.wav'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

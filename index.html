@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v13';
+const APP_VERSION = 'v14';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -63,7 +63,7 @@ const FORCE_MUTE = QS.has('mute');
 
 /* ================= сохранение ================= */
 const SAVE_KEY = 'eshche-razok-save-v1';
-const DEF = { chest: 0, arms: 0, cans: 50, energy: 100, gym: 'dvor', tips: {}, tutEver: false, broOpen: false, club100: false, bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', muted: false, voiceOff: {}, music: true };
+const DEF = { chest: 0, arms: 0, cans: 50, energy: 100, gym: 'dvor', tips: {}, tutEver: false, broOpen: false, club100: false, bans: {}, disguise: {}, tutDone: false, pushSeen: false, sets: 0, crashes: 0, best: { w: 0, r: 0 }, outfit: 'dryshch', legend: false, muted: false, voiceOff: {}, music: true };
 const fresh = () => JSON.parse(JSON.stringify(DEF));
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s && typeof s === 'object') { const o = Object.assign(fresh(), s); if (!s.tips && s.tutDone) o.tutEver = true; /* старое сохранение с пройденным обучением — новые подсказки можно пропустить */ return o; } } catch (e) { /* нет хранилища */ } return fresh(); })();
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
@@ -71,7 +71,12 @@ const buildOf = (s) => Math.min(3.2, 0.4 + (s.chest + s.arms) / 60);
 const capacity = () => 45 + S.chest * 0.55 + S.arms * 0.25;
 const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['КАЧОК', 1.6], ['МАШИНА', 2.4], ['ЛЕГЕНДА', 3.2]];
 const STAGE_GEN = { 'КРЕПЫШ': 'КРЕПЫША', 'КАЧОК': 'КАЧКА', 'МАШИНА': 'МАШИНЫ', 'ЛЕГЕНДА': 'ЛЕГЕНДЫ' };   // «до КРЕПЫША»
-function stageOf(b) { let i = 0; while (i < STAGES.length - 2 && b >= STAGES[i + 1][1]) i++; return { i, name: STAGES[i][0], from: STAGES[i][1], to: STAGES[i + 1][1], next: STAGES[i + 1][0] }; }
+// ЛЕГЕНДА — последняя стадия: дальше стадий нет (to = from, next = null), но мышцы и рабочий вес растут
+function stageOf(b) {
+  let i = 0; while (i < STAGES.length - 1 && b >= STAGES[i + 1][1] - 1e-9) i++;
+  const last = i === STAGES.length - 1;
+  return { i, name: STAGES[i][0], from: STAGES[i][1], to: last ? STAGES[i][1] : STAGES[i + 1][1], next: last ? null : STAGES[i + 1][0], last };
+}
 
 /* ================= качалки и люди ================= */
 // Залы открываются по стадиям: дрищ — улица, крепыш — школа и фитнес, качок — олдскульная «Железяка» (дальше всё открыто).
@@ -918,7 +923,7 @@ function ensureAudio() {
   ctx.resume().catch(() => {});
   A = { ctx, master, musicBus, buf: {}, musicSrc: null, duck: 1, broSrc: null };
   try { makeSounds(); } catch (e) { console.error(e); }
-  loadSample('sounds/obosralsya.wav', 'meme'); loadSample('sounds/lightweight.wav', 'bro');
+  loadSample('sounds/obosralsya.wav', 'meme'); loadSample('sounds/lightweight.wav', 'bro'); loadSample('sounds/final.wav', 'final');
   // эхо зала и музыка считаются в фоне, чтобы первое касание не тормозило
   setTimeout(() => { addRoomAll().then(renderMusic).catch((e) => console.error(e)); }, 80);
 }
@@ -1105,7 +1110,7 @@ function musicTick() {
     if (crashNow) { s.playbackRate.setValueAtTime(1, t); s.playbackRate.linearRampToValueAtTime(0.2, t + 0.45); gn.linearRampToValueAtTime(0, t + 0.5); try { s.stop(t + 0.55); } catch (e) { /* уже */ } }
     else { gn.linearRampToValueAtTime(0, t + 0.3); try { s.stop(t + 0.35); } catch (e) { /* уже */ } }
   }
-  const duck = state === 'set' && R && R.bro ? 0.25 : 1;
+  const duck = state === 'legend' && LEGEND_PLAY ? 0.05 : state === 'set' && R && R.bro ? 0.25 : 1;
   if (A.musicSrc && duck !== A.duck) { A.duck = duck; const t = A.ctx.currentTime; A.musicBus.gain.cancelScheduledValues(t); A.musicBus.gain.setTargetAtTime(MUSIC_VOL * duck, t, 0.15); }
 }
 function loadSample(url, key) {
@@ -1163,7 +1168,7 @@ const BRO_PRICE = 50;     // мотивация за банки протеина
 const MORE_K = 1.5;       // «Ещё разок!»: следующий повтор растит мышцы в полтора раза
 const LEGEND_K = 3;       // дожатый тапами (или мотиватором) повтор
 // Рост за один подход не больше доли текущей стадии: так на стадию уходит минимум 3–4 подхода (дрищ — 2).
-const growCap = (st) => (st.to - st.from) * 60 * (st.i === 0 ? 0.6 : 0.28);
+const growCap = (st) => st.last ? 0.8 * 60 * 0.28 : (st.to - st.from) * 60 * (st.i === 0 ? 0.6 : 0.28);   // у ЛЕГЕНДЫ — как у МАШИНЫ
 // Баланс: повторов мало, каждый дорогой. Нагрузка = вес / рабочий вес.
 const costFor = (load) => 0.2 * Math.pow(load, 1.5);
 const baseGain = (load) => 1.0 * Math.pow(load, 1.2);
@@ -1372,8 +1377,10 @@ function finishSet() {
   else if (react === 'respect') quote = 'Тяжёлый план закрыл. Зал уважает.';
   else if (react === 'laugh') quote = 'Халяву закрыл… Зал ржёт.';
   if (newGym) quote = 'Теперь пускают: ' + newGyms.map((id) => GYMS[id].name).join(' и ') + '!';
+  const legendUp = stageOf(nb).last && !stageOf(old).last;
+  if (legendUp) { S.legend = true; save(); quote = 'Всё. Ты легенда.'; }
   DONE = { weight: R.weight, target: R.target, reps: R.reps, red: R.red, legend: R.legend, spotted: R.spotted, over: Math.max(0, reps - R.target), chestG, armsG, cansG, planDone, record, oldB: old, newB: nb,
-    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word, doped, gym: S.gym, newOutfit, newGym, newGyms };
+    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word, doped, gym: S.gym, newOutfit, newGym, newGyms, legendUp };
   DONE.cansG += reactCans;
   go('done');
   if (react === 'respect' || react === 'machine') play('cheer');
@@ -1815,7 +1822,7 @@ function drawTitle() {
   const st = stageOf(b);
   box(g, 452, 128, 320, gymOpen(id) ? 52 : 72, 12, 'rgba(14,15,19,.72)');
   text(g, GYMS[id].name + (disg ? ' · в усах' : ''), 612, 146, font(500, 15, FF.body), P.text, 'center');
-  text(g, 'Стадия: ' + st.name + ' · жим ~' + Math.round(capacity()) + ' кг', 612, 168, font(400, 14, FF.body), P.dim, 'center');
+  text(g, 'Стадия: ' + st.name + ' · жим ~' + Math.round(capacity()) + ' кг', 612, 168, font(st.last ? 700 : 400, 14, FF.body), st.last ? P.yellow : P.dim, 'center');
   if (!gymOpen(id)) text(g, gymUnlocked(id) ? 'Отсюда тебя выгнали — выбери другую качалку' : 'Сюда пускают со стадии ' + STAGES[GYMS[id].stage][0] + ' — иди в другую', 612, 190, font(500, 14, FF.body), P.bad, 'center');
   btn(492, 204, 240, 54, 'ИГРАТЬ  ▸', 'primary', () => { goFullscreen(); go('gyms'); }, 24);   // сначала — где качаться
   iconBtn(12, 10, S.muted ? 'mute' : 'sound', () => setMuted(!S.muted));
@@ -1940,6 +1947,46 @@ function drawPrep() {
   canIcon(g, 492, 362, 0.6); text(g, String(st.price), 504, 368, font(700, 18, FF.head), S.cans < st.price ? P.bad : P.text, 'left');
   btn(630, 328, 190, 48, st.why || 'ЖАТЬ  ▸', st.why ? 'off' : 'primary', startPrepared, 19);
 }
+// ЛЕГЕНДА: «ты доказал всем» → «НАГРАДА?» → играет запись → главное меню. Дальше — тот же статус, прокачки нет.
+let LEGEND_PLAY = null;
+function claimReward() {
+  if (LEGEND_PLAY) return;
+  ensureAudio();
+  const b = A && A.buf.final;
+  if (b) play('final');
+  LEGEND_PLAY = { t: 0, dur: b ? b.duration + 0.4 : 2.5 };
+}
+function cup(x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  blob(g, [{ k: 'arc', x: -34, y: -22, r: 16, a0: 0.5 * Math.PI, a1: 1.5 * Math.PI, w: 7, c: '#E8BC3A' }, { k: 'arc', x: 34, y: -22, r: 16, a0: 1.5 * Math.PI, a1: 2.5 * Math.PI, w: 7, c: '#E8BC3A' }], 2.5);
+  blob(g, [{ k: 'poly', p: [[-34, -46], [34, -46], [26, -6], [10, 6], [-10, 6], [-26, -6]], c: '#F4C12E' }, { k: 'rr', x: -7, y: 4, w: 14, h: 22, r: 3, c: '#E8BC3A' }, { k: 'rr', x: -26, y: 24, w: 52, h: 14, r: 4, c: '#9C7410' }], 3);
+  g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(-24, -40, 6, 30);
+  g.fillStyle = '#FFF6C8'; g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 6 : 13; g.lineTo(Math.cos(a) * r, -24 + Math.sin(a) * r); } g.closePath(); g.fill();
+  g.restore();
+}
+function drawLegend() {
+  const t = stateT, p = LEGEND_PLAY;
+  g.fillStyle = '#16120A'; g.fillRect(0, 0, W, H);
+  g.save(); g.translate(230, 220); g.rotate(t * 0.25); g.globalAlpha = 0.5;
+  for (let i = 0; i < 16; i++) { g.rotate(TAU / 16); g.fillStyle = i % 2 ? '#F4C12E' : '#9C7410'; g.beginPath(); g.moveTo(0, 0); g.lineTo(700, -60); g.lineTo(700, 60); g.closePath(); g.fill(); }
+  g.restore();
+  vignette(g, 0.7, 230, 220, 120);
+  person(g, 230, 384, 1.16, Object.assign(playerLook(), { arms: 'flex', mood: 'proud' }));
+  if (t < 2) { const s2 = 1 - t / 2; sparkle(g, 140, 140, 14 * s2 + 4); sparkle(g, 330, 120, 12 * s2 + 3); }
+  const k = easeOut(t / 0.5);
+  g.save(); g.globalAlpha = k;
+  textOl(g, 'ЛЕГЕНДА', 600, 104, font(400, 46, FF.logo), P.yellow, 10, 'center');
+  textOl(g, 'Ты доказал всем, что ты легенда.', 600, 150, font(700, 22, FF.head), '#FFFFFF', 6, 'center');
+  text(g, 'Новый статус. Дальше прокачки нет —', 600, 182, font(500, 15, FF.body), '#E9DFC6', 'center');
+  text(g, 'но рабочий вес будет расти.', 600, 202, font(500, 15, FF.body), '#E9DFC6', 'center');
+  if (!p) btn(490, 236, 220, 56, 'НАГРАДА?', 'primary', claimReward, 24);
+  else {
+    const bob = Math.sin(p.t * 5) * 6, s3 = 0.9 + 0.1 * Math.sin(p.t * 3);
+    cup(600, 290 + bob, 1.2 * s3);
+    for (let i = 0; i < 26; i++) { const x0 = (i * 97) % W, fall = ((p.t * (60 + (i % 5) * 18)) + i * 37) % (H + 40); g.fillStyle = ['#F4C12E', '#E0402F', '#2F6BD8', '#36A35A', '#FFFFFF'][i % 5]; g.save(); g.translate(x0 + Math.sin(p.t * 2 + i) * 12, fall - 20); g.rotate(p.t * 3 + i); g.fillRect(-4, -2, 8, 4); g.restore(); }
+  }
+  g.restore();
+}
 function drawWardrobe() {
   panelBg();
   iconBtn(12, 10, 'back', () => go('title'));
@@ -2041,10 +2088,10 @@ function drawDone() {
     box(g, 494, y, BW, 11, 5.5, P.ui3); if (v > 0.05) box(g, 494, y, Math.max(11, BW * Math.min(1, v / 14) * k), 11, 5.5, col);
     text(g, '+' + Math.round(v), 812, y + 11, font(700, 15, FF.head), P.text, 'right');
   });
-  const st = stageOf(b), pr = clamp((b - st.from) / (st.to - st.from), 0, 1);
-  fitText(g, st.name, 432, 236, 56, 700, 14, FF.head, P.text);
-  box(g, 494, 226, BW, 11, 5.5, P.ui3); box(g, 494, 226, Math.max(11, BW * pr), 11, 5.5, P.green);
-  fitText(g, 'до ' + (STAGE_GEN[st.next] || st.next), 812, 237, 88, 500, 12.5, FF.body, P.dim, 'right');
+  const st = stageOf(b), pr = st.last ? 1 : clamp((b - st.from) / (st.to - st.from), 0, 1);
+  fitText(g, st.name, 432, 236, 56, 700, 14, FF.head, st.last ? P.yellow : P.text);
+  box(g, 494, 226, BW, 11, 5.5, P.ui3); box(g, 494, 226, Math.max(11, BW * pr), 11, 5.5, st.last ? P.yellow : P.green);
+  fitText(g, st.last ? 'предел' : 'до ' + (STAGE_GEN[st.next] || st.next), 812, 237, 88, 500, 12.5, FF.body, st.last ? P.yellow : P.dim, 'right');
   canIcon(g, 444, 272, 0.95); fitText(g, '+' + d.cansG, 462, 280, 60, 700, 22, FF.head, P.text);
   const tag = d.record ? 'РЕКОРД · жим ' + d.weight + ' кг × ' + Math.floor(d.reps) : d.planDone ? 'ПЛАН ВЫПОЛНЕН' : 'ПЛАН НЕ ВЫПОЛНЕН', tagC = d.record ? P.yellow : d.planDone ? P.good : P.bad;
   box(g, 530, 256, 286, 32, 16, null, tagC, 2); fitText(g, tag, 673, 277, 262, 600, 15, FF.head, tagC, 'center');
@@ -2154,6 +2201,9 @@ function update(dt) {
   if (TIP) { TIP.t += dt; return; }   // подсказка открыта — игра стоит
   stateT += dt;
   if (state === 'set' && R) updateSet(dt);
+  // ЛЕГЕНДА: после итогов — праздничный экран; награда доиграла — в главное меню
+  if (state === 'done' && DONE && DONE.legendUp && !DONE.legendShown && stateT > 2.2) { DONE.legendShown = true; go('legend'); }
+  if (state === 'legend' && LEGEND_PLAY) { LEGEND_PLAY.t += dt; if (LEGEND_PLAY.t >= LEGEND_PLAY.dur) { LEGEND_PLAY = null; go('title'); } }
 }
 function draw() {
   BTN.length = 0;
@@ -2168,6 +2218,7 @@ function draw() {
   else if (state === 'reset') drawReset();
   else if (state === 'prep') drawPrep();
   else if (state === 'wardrobe') drawWardrobe();
+  else if (state === 'legend') drawLegend();
   if (TIP) { BTN.length = 0; drawTip(); }
 }
 const PTR = new Map(); let KEYHOLD = false;
@@ -2276,6 +2327,7 @@ window.ER = {
     return c.toDataURL('image/png').split(',')[1];
   },
   setBroLook(k) { BRO_LOOK = k; CACHE.clear(); },
+  stage() { return stageOf(buildOf(S)).name; }, get legendPlay() { return !!LEGEND_PLAY; },
   loud() { if (!A) return null; const o = {}; for (const [k, b] of Object.entries(A.buf)) o[k] = +(20 * Math.log10(measureLoud(b) / SFX_TARGET)).toFixed(1); return o; },
   audioInfo() {
     if (!A) return null;
