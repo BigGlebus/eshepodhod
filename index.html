@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -69,19 +69,19 @@ let S = (() => { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'n
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { /* без сохранения */ } }
 const buildOf = (s) => Math.min(3.2, 0.4 + (s.chest + s.arms) / 60);
 const capacity = () => 45 + S.chest * 0.55 + S.arms * 0.25;
-const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['ШКАФ', 1.6], ['МАШИНА', 2.4], ['ЛЕГЕНДА', 3.2]];
-const STAGE_GEN = { 'КРЕПЫШ': 'КРЕПЫША', 'ШКАФ': 'ШКАФА', 'МАШИНА': 'МАШИНЫ', 'ЛЕГЕНДА': 'ЛЕГЕНДЫ' };   // «до КРЕПЫША»
+const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['КАЧОК', 1.6], ['МАШИНА', 2.4], ['ЛЕГЕНДА', 3.2]];
+const STAGE_GEN = { 'КРЕПЫШ': 'КРЕПЫША', 'КАЧОК': 'КАЧКА', 'МАШИНА': 'МАШИНЫ', 'ЛЕГЕНДА': 'ЛЕГЕНДЫ' };   // «до КРЕПЫША»
 function stageOf(b) { let i = 0; while (i < STAGES.length - 2 && b >= STAGES[i + 1][1]) i++; return { i, name: STAGES[i][0], from: STAGES[i][1], to: STAGES[i + 1][1], next: STAGES[i + 1][0] }; }
 
 /* ================= качалки и люди ================= */
-// Залы открываются по стадиям: дрищ — улица, крепыш — школа, качок — фитнес, шкаф — олдскульная «Железяка».
+// Залы открываются по стадиям: дрищ — улица, крепыш — школа и фитнес, качок — олдскульная «Железяка» (дальше всё открыто).
 const GYM_IDS = ['dvor', 'school', 'glamour', 'podval'];
 const GYMS = {
-  podval: { stage: 3, name: 'Подвал «Железяка»', from: 'из подвала «Железяка».', spot: 'tolyan', filmer: 'girl', perk: 'Олдскульная качалка: ржавые блины, кот на окне' },
+  podval: { stage: 2, name: 'Подвал «Железяка»', from: 'из подвала «Железяка».', spot: 'tolyan', filmer: 'girl', perk: 'Олдскульная качалка: ржавые блины, кот на окне' },
   school: { stage: 1, name: 'Школьный спортзал', from: 'из школьного спортзала.', spot: 'petrovich', filmer: 'girl', perk: 'Шведская стенка, физрук со свистком' },
   // во дворе никого: ни соседа, ни зрителей — не выгонят, не засмеют, но и страховки нет
   dvor: { stage: 0, name: 'Уличная качалка', from: 'со двора.', spot: null, filmer: null, alone: true, perk: 'Турник у гаражей. Никого нет — позорься сколько хочешь' },
-  glamour: { stage: 2, name: 'Фитнес «Гламур»', from: 'из фитнеса «Гламур».', spot: 'angela', filmer: 'blogger', perk: 'Зеркала, смузи и сторис' },
+  glamour: { stage: 1, name: 'Фитнес «Гламур»', from: 'из фитнеса «Гламур».', spot: 'angela', filmer: 'blogger', perk: 'Зеркала, смузи и сторис' },
 };
 const NPC = {
   tolyan: { build: 3, top: '#23262C', pants: '#3B3F47', hair: 'bald', chain: true },
@@ -1183,26 +1183,40 @@ const newbieK = () => stageOf(buildOf(S)).i === 0 ? 2 : 1;
 // Подготовка перед подходом: бонус, побочка и цена в банках протеина.
 // Энергия: подход отнимает 30 из 100, сама не восстанавливается — только едой перед подходом.
 const ENERGY_MAX = 100, ENERGY_COST = 30;
-const PREPS = [
-  { id: 'none', name: 'Ничего не делать', short: '', price: 0, plus: 'Без бонусов', minus: 'Без побочек' },
-  { id: 'shawa', name: 'Съесть шаурму', short: 'ШАУРМА', price: 0, food: true, plus: 'Энергия до 100', minus: 'В дожиме можно внезапно обосраться' },
-  { id: 'banana', name: 'Бананы и творог', short: 'БАНАНЫ', price: 10, food: true, plus: 'Энергия до 100', minus: 'Без побочек' },
-  { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 25, plus: 'Выносливость +15%', minus: 'Судороги: с жёлтой зоны рука может замереть' },
-  { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Выносливость +15%, рост мышц +15%', minus: 'Судороги и допинг-контроль: могут выгнать на 3 тренировки' },
+// Подготовка: одна еда (энергия) и одна добавка (бонус с побочкой) — можно вместе.
+const FOODS = [
+  { id: 'none', icon: 'nofood', name: 'Без еды', short: '', price: 0, energy: 0, plus: 'Энергия не прибавится', minus: 'Без побочек' },
+  { id: 'shawa', name: 'Съесть шаурму', short: 'ШАУРМА', price: 0, energy: 50, plus: '+50 энергии', minus: 'В дожиме можно внезапно обосраться', bad: true },
+  { id: 'banana', name: 'Бананы и творог', short: 'БАНАНЫ', price: 15, energy: 50, plus: '+50 энергии', minus: 'Без побочек' },
+  { id: 'smoothie', name: 'Смузи', short: 'СМУЗИ', price: 30, energy: 100, plus: '+100 энергии', minus: 'Курица, творог и яйца. Без побочек' },
 ];
-const PREP_FX = { none: { costK: 1, gainK: 1 }, shawa: { costK: 1, gainK: 1 }, banana: { costK: 1, gainK: 1 }, creatine: { costK: 0.87, gainK: 1 }, test: { costK: 0.87, gainK: 1.15 } };
-let PREP_FOR = null, FORCE_CRAMP = null, FORCE_DOPE = null, FORCE_SHAWA = null;
-const prepBlocked = (p) => S.cans < p.price ? 'МАЛО БАНОК' : !p.food && S.energy < ENERGY_COST ? 'НЕТ ЭНЕРГИИ' : '';
-function pickPrep(id) {
-  const p = PREPS.find((x) => x.id === id); if (!p || !PREP_FOR || prepBlocked(p)) return;
-  S.cans -= p.price; if (p.food) S.energy = ENERGY_MAX;
-  save(); startSet(PREP_FOR.weight, PREP_FOR.reps, !S.tutDone, id);   // первый подход — обучающий
+const SUPPS = [
+  { id: 'none', name: 'Без добавок', short: '', price: 0, plus: 'Без бонусов', minus: 'Без побочек' },
+  { id: 'creatine', name: 'Бахнуть креатина', short: 'КРЕАТИН', price: 30, plus: 'Выносливость +15%', minus: 'Судороги: с жёлтой зоны рука может замереть', bad: true },
+  { id: 'test', name: 'Въ*бать тестостерон', short: 'ТЕСТОСТЕРОН', price: 60, plus: 'Выносливость и рост +15%', minus: 'Судороги; допинг-контроль может выгнать', bad: true },
+];
+const FOOD = (id) => FOODS.find((x) => x.id === id) || FOODS[0];
+const SUPP = (id) => SUPPS.find((x) => x.id === id) || SUPPS[0];
+const PREP_FX = { none: { costK: 1, gainK: 1 }, creatine: { costK: 0.87, gainK: 1 }, test: { costK: 0.87, gainK: 1.15 } };
+let PREP_FOR = null, PREP_SEL = { food: 'none', supp: 'none' }, FORCE_CRAMP = null, FORCE_DOPE = null, FORCE_SHAWA = null;
+function prepState() {
+  const f = FOOD(PREP_SEL.food), sp = SUPP(PREP_SEL.supp), price = f.price + sp.price;
+  const en = Math.min(ENERGY_MAX, S.energy + f.energy);
+  const why = S.cans < price ? 'МАЛО БАНОК' : en < ENERGY_COST ? 'НУЖНА ЕДА' : '';
+  return { f, sp, price, en, left: en - ENERGY_COST, why };
 }
-function startSet(weight, target, tut, prep = 'none') {
+function startPrepared() {
+  const st = prepState(); if (!PREP_FOR || st.why) return;
+  S.cans -= st.price; S.energy = st.en; save();
+  startSet(PREP_FOR.weight, PREP_FOR.reps, !S.tutDone, st.f.id, st.sp.id);   // первый подход — обучающий
+}
+function startSet(weight, target, tut, a = 'none', b = 'none') {
+  // еда и добавка — в любом порядке (тестам удобно передавать одну из них)
+  const food = [a, b].find((x) => x !== 'none' && FOODS.some((f) => f.id === x)) || 'none', supp = [a, b].find((x) => x !== 'none' && SUPPS.some((f) => f.id === x)) || 'none';
   // самочувствие каждый раз своё (±10%), и каждый повтор чуть разный — запас сил точно не угадать
-  const load = weight / capacity(), form = 0.9 + Math.random() * 0.2, pf = PREP_FX[prep] || PREP_FX.none;
-  S.energy = Math.max(0, S.energy - ENERGY_COST); if (GYMS[S.gym].stage === 3) S.broOpen = true; save();   // подход отнимает энергию; в «Железяке» открывается мотивация
-  R = { weight, target, tut, load, form, prep, gainK: pf.gainK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
+  const load = weight / capacity(), form = 0.9 + Math.random() * 0.2, pf = PREP_FX[supp] || PREP_FX.none;
+  S.energy = Math.max(0, S.energy - ENERGY_COST); if (S.gym === 'podval') S.broOpen = true; save();   // подход отнимает энергию; в «Железяке» открывается мотивация
+  R = { weight, target, tut, load, form, food, supp, gainK: pf.gainK, cramp: null, look: curOutfit(), word: forecast(load, target).word, cost: costFor(load) / form * pf.costK, repK: 1, plates: platesFor(weight), build: buildOf(S),
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, spotLeft: GYMS[S.gym].alone ? 0 : 1, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
@@ -1243,7 +1257,7 @@ let FORCE_CALL = null;
 function enterPush() {
   R.mode = 'push'; R.pushT = 0; R.pressing = false; R.tapCnt = 0; R.tapNext = 2; heroPlay('bulk', 1, true);
   // шаурма: примерно в каждом третьем дожиме живот сдаётся в случайный момент
-  R.shawaAt = R.prep === 'shawa' && (FORCE_SHAWA ?? Math.random() < 0.35) ? 0.4 + Math.random() * 1.4 : -1;
+  R.shawaAt = R.food === 'shawa' && (FORCE_SHAWA ?? Math.random() < 0.35) ? 0.4 + Math.random() * 1.4 : -1;
   if (R.call) { R.call.end = 0; R.bark = null; return; }   // ещё не договорил с прошлого раза
   // первый дожим рядом с соседом — показываем страховку, и телефон гарантированно молчит
   const firstSpot = R.spotLeft > 0 && !S.tips.spotpush;
@@ -1319,16 +1333,21 @@ function finishSet() {
     notice({ id: 'club100', title: 'ПОЗДРАВЛЯЕМ!', text: 'Ты теперь в клубе «За 100»: рабочий подход на ' + R.weight + ' кг закрыт. Таких во дворе по пальцам пересчитать.', when: onDone, big: 'КЛУБ «ЗА 100»' });
   }
   // тестостерон: допинг-контроль ловит каждого третьего (во дворе не проверяют)
-  const doped = R.prep === 'test' && !GYMS[S.gym].alone && (FORCE_DOPE ?? Math.random() < 1 / 3);
+  const doped = R.supp === 'test' && !GYMS[S.gym].alone && (FORCE_DOPE ?? Math.random() < 1 / 3);
   if (doped) { S.bans[S.gym] = 3; delete S.disguise[S.gym]; }
   save();
   const nb = buildOf(S);
   let newOutfit = null;
-  let newGym = null;
+  let newGym = null, newGyms = [];
   if (stageOf(nb).i > stageOf(old).i) {
     const o = OUTFITS.find((x) => x.stage === stageOf(nb).i); if (o) { S.outfit = o.id; newOutfit = o.name; save(); CACHE.clear(); }
-    newGym = GYM_IDS.find((id) => GYMS[id].stage === stageOf(nb).i) || null;
-    if (newGym) { const ng = newGym; notice({ id: 'newgym', title: 'ОТКРЫЛАСЬ НОВАЯ КАЧАЛКА', text: GYMS[ng].name + '. ' + GYMS[ng].perk + '. Теперь тебя туда пускают.', when: () => state === 'done' && stateT > 1.6, alt: { label: 'ПОЙТИ ТУДА', fn: () => { S.gym = ng; save(); goPlan(); } } }); }
+    newGyms = GYM_IDS.filter((id) => GYMS[id].stage > stageOf(old).i && GYMS[id].stage <= stageOf(nb).i);
+    newGym = newGyms[0] || null;
+    if (newGym) {
+      const ng = newGym, many = newGyms.length > 1, names = newGyms.map((id) => GYMS[id].name).join(' и ');
+      notice({ id: 'newgym', title: many ? 'ОТКРЫЛИСЬ НОВЫЕ КАЧАЛКИ' : 'ОТКРЫЛАСЬ НОВАЯ КАЧАЛКА', text: many ? names + '. Теперь тебя туда пускают.' : GYMS[ng].name + '. ' + GYMS[ng].perk + '. Теперь тебя туда пускают.',
+        when: () => state === 'done' && stateT > 1.6, alt: many ? { label: 'К КАЧАЛКАМ', fn: () => go('gyms') } : { label: 'ПОЙТИ ТУДА', fn: () => { S.gym = ng; save(); goPlan(); } } });
+    }
   }
   let quote;
   if (R.reps === 0) quote = 'Это что было? Даже не разогрелся.';
@@ -1340,9 +1359,9 @@ function finishSet() {
   if (react === 'machine') quote = 'Столько сверх плана — ты машина!';
   else if (react === 'respect') quote = 'Тяжёлый план закрыл. Зал уважает.';
   else if (react === 'laugh') quote = 'Халяву закрыл… Зал ржёт.';
-  if (newGym) quote = 'Теперь пускают: ' + GYMS[newGym].name + '!';
+  if (newGym) quote = 'Теперь пускают: ' + newGyms.map((id) => GYMS[id].name).join(' и ') + '!';
   DONE = { weight: R.weight, target: R.target, reps: R.reps, red: R.red, legend: R.legend, spotted: R.spotted, over: Math.max(0, reps - R.target), chestG, armsG, cansG, planDone, record, oldB: old, newB: nb,
-    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word, doped, gym: S.gym, newOutfit, newGym };
+    stageUp: stageOf(nb).i > stageOf(old).i, quote, tut, react, reactCans, spot: GYMS[S.gym].spot, word: R.word, doped, gym: S.gym, newOutfit, newGym, newGyms };
   DONE.cansG += reactCans;
   go('done');
   if (react === 'respect' || react === 'machine') play('cheer');
@@ -1412,7 +1431,7 @@ function updateSet(dt) {
         // в зелёной зоне герой молчит; с жёлтой — стонет на каждом повторе (если прошлый голос доиграл)
         if (R.fat >= 0.6) playVoice(R.fat < 0.85 ? 'mid' : 'heavy');
         // креатин и тестостерон: с жёлтой зоны примерно в каждом третьем повторе руку сводит судорогой
-        if ((R.prep === 'creatine' || R.prep === 'test') && R.fat >= 0.6 && !R.cramp && (FORCE_CRAMP ?? Math.random() < 0.3)) R.cramp = { at: Math.min(0.85, R.pos + 0.2 + Math.random() * 0.3), t: 0, on: false };
+        if (R.supp !== 'none' && R.fat >= 0.6 && !R.cramp && (FORCE_CRAMP ?? Math.random() < 0.3)) R.cramp = { at: Math.min(0.85, R.pos + 0.2 + Math.random() * 0.3), t: 0, on: false };
       }
       R.started = true; R.bottomT = 0;
       const dz = (R.pos > 0.38 && R.pos < 0.66) ? (1 - 0.62 * R.fat) : 1;
@@ -1597,7 +1616,8 @@ function drawSetHud() {
   g.beginPath(); g.moveTo(26, 20); g.lineTo(26, 40); g.moveTo(46, 20); g.lineTo(46, 40); g.moveTo(22, 26); g.lineTo(50, 26); g.stroke(); g.fillRect(20, 20, 4, 12); g.fillRect(48, 20, 4, 12);
   text(g, done ? 'ГОТОВО' : 'ПОСТАВИТЬ', 98, 31, font(700, 16, FF.head), ic, 'center', 'middle'); g.restore();
   if (canRack) hot(12, 10, 138, 40, rackBar);
-  if (R.prep && R.prep !== 'none') { const pp = PREPS.find((x) => x.id === R.prep); box(g, 12, 56, 138, 24, 12, 'rgba(23,25,30,.8)', 'rgba(244,242,236,.25)', 1.2); prepIcon(R.prep, 28, 68, 0.3); text(g, pp.short, 42, 73, font(600, 13, FF.head), P.text, 'left'); }
+  const chip = [FOOD(R.food).short, SUPP(R.supp).short].filter(Boolean).join(' + ');
+  if (chip) { box(g, 12, 56, 164, 24, 12, 'rgba(23,25,30,.8)', 'rgba(244,242,236,.25)', 1.2); fitText(g, chip, 24, 73, 142, 600, 13, FF.head, P.text); }
   if (pushing) {
     g.save(); g.translate(422, 58); g.rotate(-0.05); const k = 1 + 0.06 * Math.sin(R.pushT * 14); g.scale(k, k); textOl(g, 'ДОЖИМ!', 0, 0, font(400, 42, FF.logo), P.yellow, 9, 'center', 'middle'); g.restore();
     box(g, 524, 84, 132, 92, 18, 'rgba(14,15,19,.85)');
@@ -1785,14 +1805,12 @@ function drawTitle() {
   text(g, GYMS[id].name + (disg ? ' · в усах' : ''), 612, 146, font(500, 15, FF.body), P.text, 'center');
   text(g, 'Стадия: ' + st.name + ' · жим ~' + Math.round(capacity()) + ' кг', 612, 168, font(400, 14, FF.body), P.dim, 'center');
   if (!gymOpen(id)) text(g, gymUnlocked(id) ? 'Отсюда тебя выгнали — выбери другую качалку' : 'Сюда пускают со стадии ' + STAGES[GYMS[id].stage][0] + ' — иди в другую', 612, 190, font(500, 14, FF.body), P.bad, 'center');
-  btn(492, 204, 240, 54, 'ИГРАТЬ  ▸', 'primary', () => { goFullscreen(); goPlan(); }, 24);
-  btn(492, 272, 116, 42, 'КАЧАЛКИ', 'ghost', () => go('gyms'), 17);
-  btn(616, 272, 116, 42, 'КАК ИГРАТЬ', 'ghost', () => { briefNext = 'plan'; go('brief'); }, 17);
+  btn(492, 204, 240, 54, 'ИГРАТЬ  ▸', 'primary', () => { goFullscreen(); go('gyms'); }, 24);   // сначала — где качаться
   iconBtn(12, 10, S.muted ? 'mute' : 'sound', () => setMuted(!S.muted));
   btn(60, 10, 92, 40, 'ЗВУКИ', 'ghost', () => go('sounds'), 16);
   iconBtn(158, 10, S.music ? 'music' : 'nomusic', () => setMusic(!S.music));
   cans(762, 30, S.cans); energyChip(694, 30);
-  btn(492, 322, 240, 40, 'КОСТЮМЫ', 'ghost', () => go('wardrobe'), 17);
+  btn(492, 272, 240, 42, 'КОСТЮМЫ', 'ghost', () => go('wardrobe'), 17);
   btn(12, 330, 100, 36, 'СБРОС', 'ghost', () => go('reset'), 15);
   text(g, APP_VERSION, 14, 384, font(400, 11, FF.body), 'rgba(244,242,236,.45)', 'left');
 }
@@ -1850,7 +1868,7 @@ function drawPlan() {
     gauge(x + w / 2, y + 150, 46, p.fc.v, 12);
     text(g, p.fc.word, x + w / 2, y + 178, font(700, 20, FF.head), p.fc.col, 'center');
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
-    hot(x, y, w, h, () => { PREP_FOR = p; go('prep'); });
+    hot(x, y, w, h, () => { PREP_FOR = p; PREP_SEL = { food: 'none', supp: 'none' }; go('prep'); });
   });
   if (S.broOpen) text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
   text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 360, font(700, 20, FF.hand), '#E9DFC6', 'left');
@@ -1861,6 +1879,13 @@ function prepIcon(id, x, y, s = 1) {
   g.save(); g.translate(x, y); g.scale(s, s);
   if (id === 'none') { blob(g, [{ k: 'rr', x: -40, y: -6, w: 80, h: 26, r: 8, c: '#7C5CC4' }, { k: 'rr', x: -46, y: -22, w: 22, h: 42, r: 8, c: '#6A4DB0' }, { k: 'rr', x: 24, y: -22, w: 22, h: 42, r: 8, c: '#6A4DB0' }], 3); textOl(g, 'z z', 4, -24, font(700, 22, FF.hand), '#FFFFFF', 4, 'center'); }
   else if (id === 'shawa') { g.rotate(-0.5); blob(g, [{ k: 'rr', x: -16, y: -40, w: 32, h: 80, r: 14, c: '#E6C38A' }], 3); g.fillStyle = '#5FA05A'; g.fillRect(-12, -40, 24, 8); g.fillStyle = '#C8433A'; g.fillRect(-12, -32, 24, 5); g.strokeStyle = 'rgba(27,28,34,.35)'; g.lineWidth = 2; for (const yy of [-10, 6, 22]) { g.beginPath(); g.moveTo(-16, yy); g.lineTo(16, yy - 8); g.stroke(); } box(g, -17, 14, 34, 26, 4, '#F4F2EC', INK, 2.5); }
+  else if (id === 'nofood') { blob(g, [{ k: 'ell', x: 0, y: 8, rx: 44, ry: 16, c: '#E8E4D8' }], 3); g.strokeStyle = 'rgba(27,28,34,.3)'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, 6, 28, 9, 0, 0, TAU); g.stroke(); }
+  else if (id === 'smoothie') {
+    blob(g, [{ k: 'line', p: [[8, -48], [20, -64]], w: 5, c: P.red }], 2);
+    blob(g, [{ k: 'poly', p: [[-20, -38], [22, -38], [16, 34], [-14, 34]], c: '#F2D9C4' }], 3);
+    g.fillStyle = '#E3B8A0'; g.beginPath(); g.moveTo(-18, -20); g.lineTo(20, -20); g.lineTo(17, 6); g.lineTo(-16, 6); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(-12, -32, 5, 58);
+  }
   else if (id === 'banana') {
     box(g, 2, -18, 34, 40, 4, '#F4F2EC', INK, 2.5); g.fillStyle = P.blue; g.fillRect(4, -4, 30, 12); text(g, 'ТВОРОГ', 19, 6, font(700, 8, FF.head), '#FFFFFF', 'center');
     for (const [dx, rot] of [[-22, -0.2], [-12, 0.15]]) { g.save(); g.translate(dx, 0); g.rotate(rot); g.strokeStyle = INK; g.lineCap = 'round'; g.lineWidth = 13; g.beginPath(); g.arc(14, -6, 26, 2.3, 3.9); g.stroke(); g.strokeStyle = '#F4D03F'; g.lineWidth = 8.5; g.stroke(); g.restore(); }
@@ -1869,26 +1894,40 @@ function prepIcon(id, x, y, s = 1) {
   else if (id === 'test') { g.rotate(-0.7); blob(g, [{ k: 'rr', x: -10, y: -30, w: 20, h: 48, r: 4, c: '#CFE5F5' }, { k: 'rr', x: -16, y: -36, w: 32, h: 8, r: 3, c: '#9AA3AD' }, { k: 'rr', x: -3, y: -50, w: 6, h: 16, r: 2, c: '#9AA3AD' }], 3); g.fillStyle = '#E8BC3A'; g.fillRect(-7, -14, 14, 28); blob(g, [{ k: 'line', p: [[0, 18], [0, 44]], w: 2.5, c: '#C9CED4' }], 1.5); }
   g.restore();
 }
+function prepCard(item, x, y, w, h, sel, onTap) {
+  const afford = S.cans >= item.price;
+  box(g, x, y, w, h, 14, sel ? 'rgba(244,193,46,.14)' : P.ui2, sel ? P.yellow : 'rgba(244,242,236,.12)', sel ? 2.5 : 1.5);
+  g.save(); if (!afford) g.globalAlpha = 0.45; prepIcon(item.icon || item.id, x + 34, y + 42, 0.42); g.restore();
+  fitText(g, item.name, x + 64, y + 28, w - 94, 700, 14, FF.head, P.text);   // справа — место под галочку
+  if (item.price) { canIcon(g, x + 70, y + 44, 0.55); text(g, String(item.price), x + 80, y + 50, font(700, 14, FF.head), afford ? P.text : P.bad, 'left'); }
+  else text(g, 'бесплатно', x + 64, y + 50, font(600, 12.5, FF.head), P.dim, 'left');
+  let yy = y + 72; const tf = font(500, 11, FF.body);
+  for (const l of wrapLines(item.plus, w - 26, tf).slice(0, 2)) { text(g, l, x + 13, yy, tf, P.good, 'left'); yy += 13; }
+  for (const l of wrapLines(item.minus, w - 26, tf).slice(0, 2)) { text(g, l, x + 13, yy, tf, item.bad ? P.bad : P.dim, 'left'); yy += 13; }
+  if (sel) { blob(g, [{ k: 'ell', x: x + w - 15, y: y + 15, rx: 8, ry: 8, c: P.yellow }], 2); g.strokeStyle = INK; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(x + w - 19, y + 15); g.lineTo(x + w - 16, y + 18); g.lineTo(x + w - 11, y + 11); g.stroke(); }
+  hot(x, y, w, h, onTap);
+}
 function drawPrep() {
   panelBg();
-  const p = PREP_FOR;
+  const p = PREP_FOR, st = prepState();
   iconBtn(12, 10, 'back', () => go('plan'));
   text(g, 'КАК ПОДГОТОВИТЬСЯ?', 64, 28, font(700, 20, FF.head), P.text, 'left');
-  if (p) text(g, 'Жим ' + p.weight + ' кг × ' + p.reps + ' · ' + p.fc.word + ' · подход отнимает ' + ENERGY_COST + ' энергии, у тебя ' + Math.round(S.energy), 64, 48, font(400, 13, FF.body), S.energy < ENERGY_COST ? P.bad : P.dim, 'left');
+  if (p) fitText(g, 'Жим ' + p.weight + ' кг × ' + p.reps + ' · ' + p.fc.word + ' · подход отнимает ' + ENERGY_COST + ' энергии', 64, 48, 590, 400, 13, FF.body, P.dim);
   cans(762, 30, S.cans); energyChip(694, 30);
-  PREPS.forEach((pr, i) => {
-    const x = 24 + i * 162, y = 66, w = 150, h = 300, why = prepBlocked(pr), can = !why;
-    box(g, x, y, w, h, 16, P.ui2, pr.food ? 'rgba(244,193,46,.35)' : 'rgba(244,242,236,.12)', 1.5);
-    g.save(); if (!can) g.globalAlpha = 0.45; prepIcon(pr.id, x + w / 2, y + 46, 0.7); g.restore();
-    text(g, pr.name, x + 12, y + 100, font(700, 14.5, FF.head), P.text, 'left');
-    if (pr.price) { canIcon(g, x + 20, y + 117, 0.65); text(g, String(pr.price), x + 31, y + 123, font(700, 15, FF.head), P.text, 'left'); } else text(g, 'бесплатно', x + 12, y + 123, font(600, 13.5, FF.head), P.dim, 'left');
-    let yy = y + 148; const tf = font(500, 11.5, FF.body);
-    for (const l of wrapLines('+ ' + pr.plus, w - 24, tf)) { text(g, l, x + 12, yy, tf, P.good, 'left'); yy += 15; }
-    yy += 5;
-    for (const l of wrapLines('− ' + pr.minus, w - 24, tf)) { text(g, l, x + 12, yy, tf, P.bad, 'left'); yy += 15; }
-    btn(x + 12, y + 252, w - 24, 40, can ? 'ВЫБРАТЬ  ▸' : why, can ? 'primary' : 'off', () => pickPrep(pr.id), 14);
-  });
-  text(g, 'Валера: нет энергии — сначала поешь. У добавок всегда есть подвох.', 24, 384, font(700, 18, FF.hand), '#E9DFC6', 'left');
+  text(g, 'ЕДА — ЭНЕРГИЯ', 24, 74, font(600, 13, FF.head), P.dim, 'left');
+  FOODS.forEach((it, i) => prepCard(it, 24 + i * 202, 80, 190, 112, PREP_SEL.food === it.id, () => { PREP_SEL.food = it.id; }));
+  text(g, 'ДОБАВКИ — БОНУС С ПОДВОХОМ', 24, 212, font(600, 13, FF.head), P.dim, 'left');
+  SUPPS.forEach((it, i) => prepCard(it, 24 + i * 202, 218, 190, 112, PREP_SEL.supp === it.id, () => { PREP_SEL.supp = it.id; }));
+  // итог: энергия и цена, кнопка
+  const x = 630, y = 218;
+  box(g, x, y, 190, 112, 14, 'rgba(23,25,30,.95)', st.why ? 'rgba(255,138,120,.5)' : 'rgba(244,193,46,.6)', 2);
+  text(g, 'ЭНЕРГИЯ', x + 12, y + 18, font(600, 11, FF.head), P.dim, 'left');
+  text(g, Math.round(S.energy) + ' → ' + Math.round(st.en), x + 12, y + 40, font(700, 17, FF.head), st.en < ENERGY_COST ? P.bad : P.text, 'left');
+  text(g, st.left >= 0 ? 'после подхода: ' + Math.round(st.left) : 'не хватит на подход', x + 12, y + 56, font(500, 11, FF.body), st.left >= 0 ? P.dim : P.bad, 'left');
+  text(g, 'ЦЕНА', x + 136, y + 18, font(600, 11, FF.head), P.dim, 'left');
+  canIcon(g, x + 142, y + 34, 0.55); text(g, String(st.price), x + 152, y + 40, font(700, 17, FF.head), S.cans < st.price ? P.bad : P.text, 'left');
+  btn(x + 12, y + 66, 166, 36, st.why || 'ЖАТЬ  ▸', st.why ? 'off' : 'primary', startPrepared, 16);
+  text(g, 'Валера: еду и добавку можно взять вместе. Без энергии подход не начнёшь.', 24, 372, font(700, 18, FF.hand), '#E9DFC6', 'left');
 }
 function drawWardrobe() {
   panelBg();
@@ -2040,9 +2079,10 @@ function drawGyms() {
 // уведомления (новая качалка, клуб «За 100») — по событию. Пропустить обучение можно, только если уже проходил.
 const gaugeY = () => toScreen(handPos(0, R ? R.build : 1))[1] + 34;
 const TIPS = {
+  gyms: { tut: true, title: 'КАЧАЛКИ', text: 'Выбери, где качаться. Пока ты ДРИЩ, пускают только во двор — остальные качалки откроются, когда прокачаешься.', target: () => [24, 66, 796, 300] },
   energy: { tut: true, title: 'ЭНЕРГИЯ', text: 'Это энергия. Каждый подход отнимает 30, сама она не восстанавливается — перед качалкой подзаряжайся едой.', target: () => [680, 12, 72, 36] },
   plans: { tut: true, title: 'ВЫБОР ПЛАНА', text: 'Три плана: ЛЕГКО, РАБОЧИЙ и НА ГРАНИ. Чем тяжелее — тем больше рост мышц и банок, но выше риск обосраться. Прогноз — на карточке.', target: () => [24, 70, 796, 238] },
-  prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Шаурма и бананы с творогом восстанавливают энергию, креатин и тестостерон дают бонус. У всего, кроме бананов, есть побочка — читай красные строчки.', target: () => [186, 66, 312, 300] },
+  prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Сверху — еда: восстанавливает энергию (шаурма и бананы +50, смузи +100). Снизу — добавки: бонус с побочкой. Можно взять и еду, и добавку.', target: () => [24, 60, 796, 272] },
   lift: { tut: true, title: 'КАК ЖАТЬ', text: 'Держи палец на экране — штанга идёт вверх. Дошла до верха — отпусти палец. Это повтор.', target: () => { const b = R ? R.build : 1, t = toScreen(handPos(1, b))[1], bt = toScreen(handPos(0, b))[1]; return [356, t - 28, 48, bt - t + 44]; } },
   catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Отпусти — штанга опустится. Внизу появится шкала: жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. На груди штангу не держи.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
   yellow: { tut: true, title: 'ЖЁЛТАЯ ЗОНА', text: 'Каждый повтор теперь растит мышцы ×1,5. Но шкала сил спряталась — дальше смотри на лицо, дрожь и пульс.', target: () => [782, 58, 36, 294] },
@@ -2068,7 +2108,8 @@ function nextTip() {
 }
 // подсказки по экрану: что видно — о том и рассказываем
 function tipTriggers() {
-  if (state === 'plan') { tip('energy'); tip('plans'); }
+  if (state === 'gyms') tip('gyms');
+  else if (state === 'plan') { tip('energy'); tip('plans'); }
   else if (state === 'prep') tip('prep');
   else if (state === 'set' && R && R.mode === 'lift' && !R.started && R.t > 0.5) { tip('lift'); if (R.spotLeft > 0) tip('spot'); }
 }
