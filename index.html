@@ -70,6 +70,7 @@ function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } cat
 const buildOf = (s) => Math.min(3.2, 0.4 + (s.chest + s.arms) / 60);
 const capacity = () => 45 + S.chest * 0.55 + S.arms * 0.25;
 const STAGES = [['ДРИЩ', 0.4], ['КРЕПЫШ', 0.9], ['ШКАФ', 1.6], ['МАШИНА', 2.4], ['ЛЕГЕНДА', 3.2]];
+const STAGE_GEN = { 'КРЕПЫШ': 'КРЕПЫША', 'ШКАФ': 'ШКАФА', 'МАШИНА': 'МАШИНЫ', 'ЛЕГЕНДА': 'ЛЕГЕНДЫ' };   // «до КРЕПЫША»
 function stageOf(b) { let i = 0; while (i < STAGES.length - 2 && b >= STAGES[i + 1][1]) i++; return { i, name: STAGES[i][0], from: STAGES[i][1], to: STAGES[i + 1][1], next: STAGES[i + 1][0] }; }
 
 /* ================= качалки и люди ================= */
@@ -156,6 +157,10 @@ function box(c, x, y, w, h, r, fill, stroke, lw) {
 }
 function text(c, s, x, y, fnt, col, align = 'left', base = 'alphabetic') {
   c.font = fnt; c.fillStyle = col; c.textAlign = align; c.textBaseline = base; c.fillText(s, x, y);
+}
+function fitText(c, s, x, y, maxW, weight, size, fam, col, align = 'left', base = 'alphabetic') {
+  c.font = font(weight, size, fam); const w = c.measureText(s).width;
+  text(c, s, x, y, font(weight, w > maxW ? Math.max(8, size * maxW / w) : size, fam), col, align, base);
 }
 function textOl(c, s, x, y, fnt, col, lw = 6, align = 'center', base = 'alphabetic', ol = INK) {
   c.font = fnt; c.textAlign = align; c.textBaseline = base; c.lineJoin = 'round';
@@ -1969,24 +1974,31 @@ function drawDone() {
   textOl(g, '+' + Math.round(d.chestG), 214, 296, font(700, 26, FF.head), '#8FB4FF', 6, 'center');
   if (d.stageUp && stateT > 1.0) { const s2 = easeOut((stateT - 1.0) / 0.3); g.save(); g.translate(214, 60); g.scale(s2, s2); box(g, -130, -22, 260, 44, 22, P.yellow, INK, 2.5); text(g, 'ТЫ ТЕПЕРЬ ' + stageOf(d.newB).name + '!', 0, 1, font(700, 20, FF.head), INK, 'center', 'middle'); if (d.newOutfit) textOl(g, 'Новый костюм: ' + d.newOutfit, 0, 40, font(700, 15, FF.head), P.yellow, 5, 'center'); g.restore(); }
   box(g, 412, 12, 420, 366, 18, 'rgba(23,25,30,.95)', 'rgba(244,242,236,.15)', 1.5);
-  text(g, d.planDone ? 'ПОДХОД ЗАКРЫТ' : 'ПОДХОД НЕ ДОЖАТ', 432, 48, font(700, 26, FF.head), d.planDone ? P.text : P.bad, 'left');
-  text(g, 'Жим ' + d.weight + ' кг · план ' + d.target + (d.tut ? ' · первая тренировка' : ''), 432, 70, font(400, 14, FF.body), P.dim, 'left');
-  const tiles = [[repLabel(d.reps) || '0', d.over ? 'повторов, сверх плана ' + d.over : d.spotted ? 'повторов, страховка ' + d.spotted : 'повторов', P.text], [String(d.red), 'в красной зоне ×2', P.bad], [String(d.legend), 'дожимов ×' + LEGEND_K, P.yellow]];
-  tiles.forEach(([n, l, col], i) => { const x = 432 + i * 132; box(g, x, 82, 122, 58, 12, P.ui2); text(g, n, x + 12, 116, font(700, 28, FF.head), col, 'left'); text(g, l, x + 12, 132, font(400, 11, FF.body), P.dim, 'left'); });
+  // панель 412…832: поля по 20 px, всё длинное само ужимается
+  fitText(g, d.planDone ? 'ПОДХОД ЗАКРЫТ' : 'ПОДХОД НЕ ДОЖАТ', 432, 48, 380, 700, 26, FF.head, d.planDone ? P.text : P.bad);
+  fitText(g, 'Жим ' + d.weight + ' кг · план ' + d.target + (d.tut ? ' · первая тренировка' : ''), 432, 70, 380, 400, 14, FF.body, P.dim);
+  const tiles = [[repLabel(d.reps) || '0', d.spotted && !d.over ? 'повторов · страховка' : 'повторов', P.text], [String(d.red), 'в красной зоне ×2', P.bad], [String(d.legend), 'дожимов ×' + LEGEND_K, P.yellow]];
+  tiles.forEach(([n, l, col], i) => {
+    const x = 432 + i * 132; box(g, x, 82, 122, 58, 12, P.ui2);
+    fitText(g, n, x + 12, 116, i === 0 && d.over ? 40 : 100, 700, 28, FF.head, col);   // справа может стоять «+N сверх плана»
+    fitText(g, l, x + 12, 132, 100, 400, 11, FF.body, P.dim);
+    if (i === 0 && d.over) { text(g, '+' + d.over, x + 112, 104, font(700, 17, FF.head), P.yellow, 'right'); text(g, 'сверх плана', x + 112, 117, font(500, 10, FF.body), P.yellow, 'right'); }
+  });
   text(g, 'РОСТ МЫШЦ', 432, 164, font(600, 13, FF.head), P.dim, 'left');
+  const BW = 216;   // полосы короче — справа хватает места на «+13» и «до КРЕПЫША»
   [['Грудь', d.chestG, P.blue], ['Руки', d.armsG, P.yellow]].forEach(([n, v, col], i) => {
     const y = 176 + i * 23; text(g, n, 432, y + 10, font(500, 14, FF.body), P.text, 'left');
-    box(g, 494, y, 252, 11, 5.5, P.ui3); if (v > 0.05) box(g, 494, y, Math.max(11, 252 * Math.min(1, v / 14) * k), 11, 5.5, col);
+    box(g, 494, y, BW, 11, 5.5, P.ui3); if (v > 0.05) box(g, 494, y, Math.max(11, BW * Math.min(1, v / 14) * k), 11, 5.5, col);
     text(g, '+' + Math.round(v), 812, y + 11, font(700, 15, FF.head), P.text, 'right');
   });
   const st = stageOf(b), pr = clamp((b - st.from) / (st.to - st.from), 0, 1);
-  text(g, st.name, 432, 236, font(700, 14, FF.head), P.text, 'left');
-  box(g, 494, 226, 252, 11, 5.5, P.ui3); box(g, 494, 226, Math.max(11, 252 * pr), 11, 5.5, P.green);
-  text(g, 'до ' + st.next, 812, 237, font(500, 12.5, FF.body), P.dim, 'right');
-  canIcon(g, 444, 272, 0.95); text(g, '+' + d.cansG, 462, 280, font(700, 22, FF.head), P.text, 'left');
-  if (d.record) { box(g, 530, 256, 286, 32, 16, null, P.yellow, 2); text(g, 'РЕКОРД · жим ' + d.weight + ' кг × ' + Math.floor(d.reps), 673, 277, font(600, 15, FF.head), P.yellow, 'center'); }
-  else { box(g, 530, 256, 286, 32, 16, null, d.planDone ? P.good : P.bad, 2); text(g, d.planDone ? 'ПЛАН ВЫПОЛНЕН' : 'ПЛАН НЕ ВЫПОЛНЕН', 673, 277, font(600, 15, FF.head), d.planDone ? P.good : P.bad, 'center'); }
-  text(g, d.quote + ' — Валера', 432, 316, font(700, 19, FF.hand), '#E9DFC6', 'left');
+  fitText(g, st.name, 432, 236, 56, 700, 14, FF.head, P.text);
+  box(g, 494, 226, BW, 11, 5.5, P.ui3); box(g, 494, 226, Math.max(11, BW * pr), 11, 5.5, P.green);
+  fitText(g, 'до ' + (STAGE_GEN[st.next] || st.next), 812, 237, 88, 500, 12.5, FF.body, P.dim, 'right');
+  canIcon(g, 444, 272, 0.95); fitText(g, '+' + d.cansG, 462, 280, 60, 700, 22, FF.head, P.text);
+  const tag = d.record ? 'РЕКОРД · жим ' + d.weight + ' кг × ' + Math.floor(d.reps) : d.planDone ? 'ПЛАН ВЫПОЛНЕН' : 'ПЛАН НЕ ВЫПОЛНЕН', tagC = d.record ? P.yellow : d.planDone ? P.good : P.bad;
+  box(g, 530, 256, 286, 32, 16, null, tagC, 2); fitText(g, tag, 673, 277, 262, 600, 15, FF.head, tagC, 'center');
+  fitText(g, d.quote + ' — Валера', 432, 316, 384, 700, 19, FF.hand, '#E9DFC6');
   if (d.doped && stateT > 0.9) { const s2 = easeOut((stateT - 0.9) / 0.3); g.save(); g.translate(214, 216); g.rotate(-0.1); g.scale(s2, s2); box(g, -150, -34, 300, 68, 8, 'rgba(244,242,236,.95)', P.red, 4); text(g, 'ДОПИНГ-КОНТРОЛЬ!', 0, -6, font(400, 20, FF.logo), P.red, 'center', 'middle'); text(g, 'Выгнали на 3 тренировки', 0, 20, font(600, 15, FF.body), INK, 'center', 'middle'); g.restore(); }
   btn(432, 332, 150, 40, 'КАЧАЛКИ', 'ghost', () => go('gyms'), 17);
   btn(594, 332, 222, 40, 'ЕЩЁ ПОДХОД  ▸', 'primary', () => goPlan(), 18);
