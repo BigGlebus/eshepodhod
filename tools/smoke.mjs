@@ -94,11 +94,28 @@ await closeTips();
 check(tipsSeen.join() === 'gyms,energy,plans', 'подсказки про качалки, энергию и планы (' + tipsSeen.join() + ')');
 await click(150, 190); await closeTips();   // в обучении — лёгкий план, чтобы точно дошло до «Ещё разок?»
 check(tipsSeen.includes('prep'), 'на подготовке — подсказка про еду и добавки');
+let r0;
 await click(725, 352); check(await ev('ER.state') === 'set' && await ev('ER.R.tut') && await ev('ER.S.gym') === 'dvor', 'первый подход — обучающий, во дворе');
 await ev('ER.step(0.7)');
 const t0 = await ev('ER.R.t'); await ev('ER.hold(true); ER.step(1); ER.hold(false)');
 check(await ev('ER.tipId') === 'lift' && await ev('ER.R.t') === t0 && await ev('ER.R.pos') === 0, 'подсказка «как жать»: игра стоит, пока не нажмёшь «ПОНЯЛ»');
 await closeTips();
+// первый жим обучения: наверху «Молодец, отпусти» без подсказки; про шкалу — когда штанга легла; лежать можно сколько угодно
+r0 = await ev(`(() => { ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && !ER.tipId; i++) ER.step(1/60); ER.step(0.2); return { pos: ER.R.pos, reps: ER.R.reps, tip: ER.tipId, learn: ER.R.learn }; })()`);
+await shot('03b-release');
+check(r0.pos === 1 && r0.reps === 1 && !r0.tip && r0.learn === 'release', 'первый жим: наверху «Молодец, отпусти» без подсказки про шкалу (' + JSON.stringify(r0) + ')');
+r0 = await ev(`(() => { ER.hold(false); ER.step(0.25); const mid = { pos: +ER.R.pos.toFixed(2), tip: ER.tipId }; for (let i = 0; i < 200 && ER.R.pos > 0 && !ER.tipId; i++) ER.step(1/60); ER.step(1/60); return { mid, pos: ER.R.pos, tip: ER.tipId, learn: ER.R.learn }; })()`);
+check(r0.mid.pos > 0 && !r0.mid.tip && r0.pos === 0 && r0.tip === 'catch' && r0.learn === 'catch', 'подсказка про шкалу — только когда штанга легла на грудь (' + JSON.stringify(r0) + ')');
+await closeTips();
+r0 = await ev(`(() => { const f0 = ER.R.fat, m0 = ER.touchT(); ER.step(0.5); const m1 = ER.touchT(); ER.step(12); return { f0, f1: ER.R.fat, mode: ER.R.mode, d: +(m1 - m0).toFixed(3) }; })()`);
+check(r0.f1 === r0.f0 && r0.mode === 'lift' && r0.d > 0.05 && r0.d < 0.15, 'первая ловля: штанга лежит 12 с без расхода сил, метка ползёт в 5 раз медленнее (' + JSON.stringify(r0) + ')');
+await ev(`(() => { for (let i = 0; i < 3000 && !(ER.touchT() > -0.03 && ER.touchT() < 0.03); i++) ER.step(1/60); })()`);
+await shot('04a-catch-slow');
+r0 = await ev(`(() => { ER.hold(true); ER.step(1/60); return { zone: ER.R.hit && ER.R.hit.zone, learn: ER.R.learn }; })()`);
+check(r0.zone === 'perfect' && r0.learn === null, 'медленная шкала: нажал в зелёном — «ИДЕАЛЬНО», дальше шкала обычная (' + JSON.stringify(r0) + ')');
+r0 = await ev(`(() => { for (let i = 0; i < 600 && ER.R.pos < 1 && !ER.tipId; i++) ER.step(1/60); ER.hold(false); for (let i = 0; i < 200 && ER.R.pos > 0.1; i++) ER.step(1/60); return { pos: +ER.R.pos.toFixed(2), m: +ER.touchT().toFixed(3) }; })()`);
+await shot('04c-catch-normal');
+check(r0.m > -0.2 && r0.m < 0, 'второй раз шкала обычной скорости (' + JSON.stringify(r0) + ')');
 let r; let n = 0;
 for (n = 0; n < 90; n++) {
   await closeTips();

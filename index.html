@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -1245,7 +1245,9 @@ function startSet(weight, target, tut, a = 'none', b = 'none') {
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, noSpot: !!(GYMS[S.gym].maxSpot && weight > GYMS[S.gym].maxSpot), spotLeft: GYMS[S.gym].alone || (GYMS[S.gym].maxSpot && weight > GYMS[S.gym].maxSpot) ? 0 : 1, see: stageOf(buildOf(S)).i >= 3 ? 1.01 : stageOf(buildOf(S)).i === 2 ? 0.85 : 0.6, ring: 0, back: false, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, late: 0 } };
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, late: 0 },
+    // первый жим в обучении: 'lift' — жмём вверх, 'release' — отпусти, штанга едет вниз, 'catch' — лежит на груди без расхода сил, метка ползёт медленно
+    learn: tut && !S.tips.catch ? 'lift' : null, learnT: 0 };
   go('set');
   if (S.gym === 'school') setTimeout(() => play('whistle'), 200);
 }
@@ -1265,7 +1267,8 @@ function completeRep(kind) {
   else if (kind === 'spot') { R.reps += 0.5; R.spotted++; R.gains += base * z * 0.5 * k; fx('+½' + kTxt, P.text, 30); play('clank'); }
   else {
     R.reps += 1; if (z === 2) R.red++; R.gains += base * z * k;
-    tip('catch');   // первый повтор: как ловить штангу внизу
+    // первый повтор обучения: наверху только «Молодец, отпусти» — про шкалу расскажем, когда штанга ляжет
+    if (R.learn === 'lift') R.learn = 'release'; else if (!R.learn) tip('catch');
     const m = z * k;
     fx(m > 1 ? '+1  ×' + (Math.round(m * 10) / 10) : '+1', z === 2 ? P.bad : z > 1 || k > 1 ? P.yellow : P.text, z === 2 || k > 1 ? 30 : 26); play('clank');
   }
@@ -1433,11 +1436,13 @@ const TOP_DRAIN = 0.008, BOTTOM_DRAIN = 0.07;
 const DESC = 1.2;   // скорость опускания: вся амплитуда ~0,8 с
 const TIM = { early: -0.35, ok0: -0.06, ok1: 0.06, max: 0.5 };   // зелёное окно — 0,12 с
 const TIM_COST = { early: 1.35, perfect: 1, late: 1.3 };   // в зелёном — по плану, рано и поздно — дороже
-const touchT = () => R.pos > 0 ? -R.pos / DESC : R.bottomT;
+const LEARN_SLOW = 0.2;   // первая ловля в обучении: метка ползёт в 5 раз медленнее и ходит по кругу, пока не нажмёшь
+const touchT = () => R.learn === 'catch' ? R.learnT : R.pos > 0 ? -R.pos / DESC : R.bottomT;
 function judgeTouch() {
   R.repMul = 1;
   if (!R.started) return;
   const tr = touchT();
+  if (R.learn === 'catch') R.learn = null;   // поймал первый раз — дальше шкала обычная
   if (tr < TIM.early) { R.hit = null; return; }
   const zone = tr < TIM.ok0 ? 'early' : tr <= TIM.ok1 ? 'perfect' : 'late';
   R.armed = true; R.repMul = TIM_COST[zone] / Math.max(0.3, 1 - R.pos);
@@ -1514,7 +1519,11 @@ function updateSet(dt) {
     } else {
       R.pressing = false; R.cramp = null;
       if (R.pos > 0) { R.pos = Math.max(0, R.pos - DESC * dt); R.bottomT = 0; }
-      else if (R.started) {
+      else if (R.learn === 'release' || R.learn === 'catch') {
+        // обучение: штанга легла в первый раз — рассказываем про шкалу; лежать можно сколько угодно, силы не уходят
+        if (R.learn === 'release') { R.learn = 'catch'; R.learnT = TIM.early; tip('catch'); }
+        else { R.learnT += LEARN_SLOW * dt; if (R.learnT > TIM.max) R.learnT = TIM.early; }
+      } else if (R.started) {
         // штанга лежит на груди: силы уходят заметно, и чем дольше лежит — тем быстрее. Передержал — придавило.
         R.bottomT += dt;
         R.fat = Math.min(1, R.fat + BOTTOM_DRAIN * R.load * (R.tut ? 0.6 : 1) * (1 + 1.6 * R.bottomT) * dt / R.form);
@@ -1583,7 +1592,7 @@ function barTrack(x, top, bot, t, stuck, armed, danger) {
 const GW = 240;
 function touchGauge(cx, cy) {
   if (R.mode !== 'lift' || !R.started) return;
-  const live = !holding() && touchT() >= TIM.early, flash = R.hit && R.hit.t < 0.7 && holding();
+  const live = !holding() && touchT() >= TIM.early && R.learn !== 'release', flash = R.hit && R.hit.t < 0.7 && holding();
   if (!live && !flash) return;
   const span = TIM.max - TIM.early, x0 = cx - GW / 2, xs = (t) => x0 + (clamp(t, TIM.early, TIM.max) - TIM.early) / span * GW;
   box(g, x0 - 7, cy - 15, GW + 14, 30, 9, 'rgba(14,15,19,.88)');
@@ -1712,15 +1721,20 @@ function drawSetHud() {
   broBtn(pushing);
   // подсказки обучения
   if (R.tut && R.mode === 'lift') {
-    if (R.reps < 2 && !(holding() && R.pos > 0.05)) {
+    if (R.reps < 2 && !(holding() && R.pos > 0.05) && R.learn !== 'release') {
       const hx = 676, hy = 284; g.save(); g.fillStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.arc(hx, hy, 56, 0, TAU); g.fill();
       g.setLineDash([7, 7]); g.lineDashOffset = -R.t * 20; g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2.5; g.beginPath(); g.arc(hx, hy, 56, 0, TAU); g.stroke(); g.setLineDash([]);
       g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.ellipse(hx, hy + 6, 17, 21, 0, 0, TAU); g.fill(); g.restore();
       textOl(g, 'ДЕРЖИ ПАЛЕЦ', hx, hy + 84, font(700, 18, FF.head), '#FFFFFF', 5, 'center');
     }
-    if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
-    if (R.started && !holding() && touchT() >= TIM.early && R.reps < R.target) textOl(g, 'Жми снова, когда метка в зелёном — так легче всего', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
-    else if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 560, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    if (R.learn === 'release' && R.pos >= 1 && holding()) {   // первый жим: просто похвалить и попросить отпустить
+      textOl(g, 'МОЛОДЕЦ!', 540, 158, font(400, 34, FF.logo), P.yellow, 7, 'center', 'middle');
+      textOl(g, 'Теперь отпусти палец — штанга опустится', 540, 196, font(700, 17, FF.head), '#FFFFFF', 5, 'center');
+    } else if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
+    // подписи внизу — левее кружка «ДЕРЖИ ПАЛЕЦ» (он справа, 620–735 по x), чтобы не наезжали
+    if (R.learn === 'catch' && !holding()) textOl(g, 'Штанга лежит — силы не уходят. Жми в зелёном', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    else if (R.learn !== 'release' && R.started && !holding() && touchT() >= TIM.early && R.reps < R.target) textOl(g, 'Жми снова, когда метка в зелёном — так легче всего', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    else if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
   if (R.call) {
     const sx = spotterX();
@@ -2215,7 +2229,7 @@ const TIPS = {
   plans: { tut: true, title: 'ВЫБОР ПЛАНА', text: 'Три плана: ЛЕГКО, РАБОЧИЙ и НА ГРАНИ. Чем тяжелее — тем больше рост мышц и банок, но выше риск обосраться. Прогноз — на карточке.', target: () => [24, 70, 796, 238] },
   prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Сверху — еда: восстанавливает энергию (шаурма и бананы +50, смузи +100). Снизу — добавки: больше сил и сильнее дожим, но у креатина и тестостерона есть побочка. Можно взять и еду, и добавку.', target: () => [24, 60, 796, 258] },
   lift: { tut: true, title: 'КАК ЖАТЬ', text: 'Держи палец на экране — штанга идёт вверх. Дошла до верха — отпусти палец. Это повтор.', target: () => { const b = R ? R.build : 1, t = toScreen(handPos(1, b))[1], bt = toScreen(handPos(0, b))[1]; return [356, t - 28, 48, bt - t + 44]; } },
-  catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Отпусти — штанга опустится. Внизу появится шкала: жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. На груди штангу не держи.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
+  catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Штанга легла на грудь — вот шкала. Жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. Сейчас метка ползёт медленно, потом будет быстро, а лежащая на груди штанга начнёт отнимать силы.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
   yellow: { tut: true, title: 'ЖЁЛТАЯ ЗОНА', text: 'Каждый повтор теперь растит мышцы ×1,5. Но шкала сил спряталась — дальше смотри на лицо, дрожь и пульс.', target: () => [782, 58, 36, 294] },
   push: { tut: true, title: 'ДОЖИМ', text: 'Силы кончились — штанга встала. Тапай по экрану часто, чтобы дожать: такой повтор засчитается ×3. Бурлометр — это живот: перегнёшь — обосрёшься.', target: () => [520, 80, 140, 100] },
   spot: { title: 'ЗДЕСЬ ЕСТЬ СОСЕД', text: 'Кнопка с ладонью — страховка. Раз за подход сосед поможет дожать штангу, засчитается половина повтора.', target: () => [10, 310, 68, 68] },
@@ -2363,7 +2377,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/cl
 
 // Для автопроверки: управление игрой без пальцев (звука нет: ?mute и браузер без звука).
 window.ER = {
-  get S() { return S; }, get R() { return R; }, get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
+  get S() { return S; }, get R() { return R; }, touchT: () => touchT(), get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
   pause(v) { PAUSED = v; }, go, goPlan, startSet, rackBar, callSpot, pushTap, crash,
   reset() { S = fresh(); save(); CACHE.clear(); go('title'); },
   hold(v) { if (v) { PTR.set(-1, 'hold'); if (!TIP) onPress(560, 280); } else PTR.delete(-1); },
