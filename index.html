@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v16';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -116,7 +116,7 @@ const BARKS = {
   petrovich: { start: ['Так, без халтуры!', 'Спину ровно!'], idle: ['Не спим, не спим!'], red: ['Ещё! Ещё!'],
     help: ['Подстраховать?'], legend: ['Пятёрка!'], spotted: ['Два. Садись.'], plan: ['Норматив сдан. Ещё?'], disguise: ['Фамилия? Лицо знакомое'], more: ['ЕЩЁ РАЗОК!'],
     call: ['Алло, Петрович слушает', 'Журнал? Заполню, заполню…', 'Какой ещё педсовет?'], hangup: ['Так, на чём мы остановились?'],
-    back: [['Ой, спина!.. Здоровье не то.', 'Раньше-то я был мистер «Олимпия»,', 'пока травму не получил']] },
+    back: ['Ай, спина!'] },
   angela: { start: ['Давай, котик!', 'Сниму для сторис?'], idle: ['Ты живой?'], red: ['Ух ты!'],
     help: ['Помочь, зайка?'], legend: ['Это в сторис!'], spotted: ['Я тоже жму, если что'], plan: ['Красиво! Ещё?'], disguise: ['Ой, какие у вас усы!'], more: ['ЕЩЁ РАЗОК!'],
     call: ['Алло, зай?', 'Да я в зале, тут один тужится…', 'И что он ей ответил?!'], hangup: ['Ой, ты звал, котик?'],
@@ -1252,7 +1252,8 @@ function startSet(weight, target, tut, a = 'none', b = 'none') {
 function bark(kind) {
   const sp = GYMS[S.gym].spot; if (!sp) return;   // во дворе говорить некому
   const list = BARKS[sp][kind]; if (!list) return;
-  if (kind === 'back' || kind === 'heavy' || kind === 'drop') { R.bark = { text: pick(list), t: 3.2 }; return; }
+  if (kind === 'back') { R.bark = { text: pick(list), t: BACK_GRACE }; return; }   // реплика — пока штанга держится
+  if (kind === 'heavy' || kind === 'drop') { R.bark = { text: pick(list), t: 3.2 }; return; }
   R.bark = { text: pick(list), t: kind === 'help' ? 99 : kind === 'more' ? 99 : 2.2 };
 }
 function fx(textS, col, size = 26, y = 110) { R.fx.push({ text: textS, col, size, x: 520, y, t: 0, life: 1.1 }); }
@@ -1281,7 +1282,8 @@ function answerMore(yes) {
 // В половине дожимов у соседа как раз звонит телефон — болтает и подстраховать не может. Заранее не угадать:
 // решается в момент, когда штанга встала. В обучении звонков нет — сначала надо попробовать страховку.
 let FORCE_CALL = null;
-const PUSH_GRACE = 2.5;   // дожим начался — штанга пару секунд держится, можно подумать
+const PUSH_GRACE = 2.5;   // дожим начался — штанга пару секунд держится, можно подумать (без полоски и отсчёта)
+const BACK_GRACE = 2.5, BACK_MSG = 3;   // физрук схватился за спину: ещё 2,5 с штанга держится, потом 3 с надпись
 let FORCE_EVENT = null, FORCE_DROP = null, FORCE_BACK = null;
 function enterPush() {
   R.mode = 'push'; R.pushT = 0; R.pushGrace = PUSH_GRACE; R.pressing = false; R.tapCnt = 0; R.tapNext = 2; heroPlay('bulk', 1, true);
@@ -1322,7 +1324,8 @@ function callSpot() {
   if (!(R.mode === 'push' || (R.mode === 'lift' && R.pos < 1))) return;
   const gm = GYMS[S.gym];
   if (gm.backP && R.mode === 'push' && !R.firstSpot && (FORCE_BACK ?? Math.random() < gm.backP)) {
-    R.spotLeft = 0; R.back = true; bark('back'); fx('СПИНУ ПРИХВАТИЛО!', P.bad, 24, 150); return;   // страховки не будет — тапай сам
+    // «Ай, спина!» — штанга ещё пару секунд держится, чтобы осознать; потом идёт вниз, и страховки уже не будет
+    R.spotLeft = 0; R.back = true; R.pushGrace = Math.max(R.pushGrace, R.pushT + BACK_GRACE); bark('back'); return;
   }
   R.spotLeft--; R.mode = 'spot'; R.spotT = 0; R.spotFrom = R.pos; R.armed = true; R.bark = null; S.pushSeen = true;
 }
@@ -1678,10 +1681,14 @@ function drawSetHud() {
   const chip = [FOOD(R.food).short, SUPP(R.supp).short].filter(Boolean).join(' + ');
   if (chip) { box(g, 12, 56, 164, 24, 12, 'rgba(23,25,30,.8)', 'rgba(244,242,236,.25)', 1.2); fitText(g, chip, 24, 73, 142, 600, 13, FF.head, P.text); }
   if (pushing) {
-    if (R.pushT < R.pushGrace) {   // передышка: штанга держится, полоска убывает
-      const left = R.pushGrace - R.pushT;
-      box(g, 336, 84, 172, 8, 4, 'rgba(14,15,19,.8)'); box(g, 336, 84, 172 * left / R.pushGrace, 8, 4, P.yellow);
-      textOl(g, 'штанга держится · ' + Math.ceil(left), 422, 112, font(700, 15, FF.head), '#FFFFFF', 5, 'center');
+    // у физрука сорвало спину: передышка кончилась, штанга пошла вниз — сообщаем, что страховки не будет
+    const fall = R.pushT - R.pushGrace;
+    if (R.back && fall >= 0 && fall < BACK_MSG) {
+      g.save(); g.globalAlpha = Math.min(1, fall / 0.15, (BACK_MSG - fall) / 0.4);
+      box(g, 232, 92, 284, 62, 14, 'rgba(14,15,19,.9)', P.bad, 2.5);
+      text(g, 'ПЕТРОВИЧУ СОРВАЛО СПИНУ', 374, 113, font(700, 18, FF.head), P.bad, 'center', 'middle');
+      text(g, 'ПОДНИМАЙ САМ!', 374, 138, font(700, 22, FF.head), '#FFFFFF', 'center', 'middle');
+      g.restore();
     }
     g.save(); g.translate(422, 58); g.rotate(-0.05); const k = 1 + 0.06 * Math.sin(R.pushT * 14); g.scale(k, k); textOl(g, 'ДОЖИМ!', 0, 0, font(400, 42, FF.logo), P.yellow, 9, 'center', 'middle'); g.restore();
     box(g, 524, 84, 132, 92, 18, 'rgba(14,15,19,.85)');

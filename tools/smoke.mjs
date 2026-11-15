@@ -350,9 +350,12 @@ check(r.mode === 'ask' && r.reps < r.target, 'дожал до плана — в�
 r = await ev('(() => { ER.more(true); return { mode: ER.R.mode, bonus: ER.R.bonus }; })()');
 check(r.mode === 'lift' && !r.bonus, '«ЖМЁМ ДАЛЬШЕ» до плана — без бонуса ×1,5');
 r = await ev(PUSH2('school', 60, 'ER.forceEvent("none"); ER.forceBack(true);'));
-r = await ev('(() => { ER.callSpot(); ER.step(0.3); return { mode: ER.R.mode, spot: ER.R.spotLeft, back: ER.R.back }; })()');
+r = await ev('(() => { ER.step(3); ER.R.pos = 0.5; ER.R.burl = 0; ER.callSpot(); const b0 = ER.R.pos; ER.step(0.3); return { mode: ER.R.mode, spot: ER.R.spotLeft, back: ER.R.back, bark: ER.R.bark && [].concat(ER.R.bark.text).join(" "), b0 }; })()');
 await shot('52-school-back');
-check(r.mode === 'push' && r.spot === 0 && r.back, 'школа: у физрука прихватило спину — страховки нет (' + JSON.stringify(r) + ')');
+check(r.mode === 'push' && r.spot === 0 && r.back && r.bark === 'Ай, спина!', 'школа: у физрука сорвало спину — «Ай, спина!», страховки нет (' + JSON.stringify(r) + ')');
+const bk = await ev('(() => { const p1 = ER.R.pos; ER.step(2); const p2 = ER.R.pos; ER.step(0.4); return { p1, p2, p3: ER.R.pos, mode: ER.R.mode, bark: !!ER.R.bark }; })()');
+await shot('52b-school-back-fall');
+check(Math.abs(bk.p1 - r.b0) < 1e-9 && Math.abs(bk.p2 - r.b0) < 1e-9 && bk.p3 < bk.p2 && bk.mode === 'push' && !bk.bark, 'школа: после «Ай, спина!» штанга 2,5 с держится, потом идёт вниз (' + JSON.stringify(bk) + ')');
 await ev('ER.forceBack(null)');
 r = await ev(PUSH2('glamour', 80, 'ER.forceEvent("story");')); await ev('ER.step(1)'); await shot('53-glamour-story');
 check(r.call === 'story', 'фитнес: тренерша снимает сторис (' + JSON.stringify(r) + ')');
