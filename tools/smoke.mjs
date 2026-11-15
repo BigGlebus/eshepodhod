@@ -74,7 +74,7 @@ async function rep() {
 
 // 1. Первый запуск: обучение. Каждая подсказка ставит игру на паузу и ждёт «ПОНЯЛ»
 await shot('01-title');
-const tipShots = { energy: '02-tip-energy', plans: '02b-tip-plans', prep: '02c-tip-prep', lift: '03-tip-lift', catch: '04-tip-catch', yellow: '05-tip-yellow', push: '06-tip-push' };
+const tipShots = { goal: '01b-tip-goal', energy: '02-tip-energy', plans: '02b-tip-plans', prep: '02c-tip-prep', lift: '03-tip-lift', catch: '04-tip-catch', yellow: '05-tip-yellow', push: '06-tip-push' };
 const tipsSeen = [];
 async function closeTips() {
   let t;
@@ -84,14 +84,14 @@ async function closeTips() {
     const b = await ev('ER.tipBtn()'); await click(b[0], b[1]);
   }
 }
-await click(612, 231); check(await ev('ER.state') === 'gyms' && await ev('ER.tipId') === 'gyms', '«Играть» → выбор качалки, тренер объясняет');
+await click(612, 231); check(await ev('ER.state') === 'gyms' && await ev('ER.tipId') === 'goal', '«Играть» → выбор качалки, тренер сначала объясняет цель игры');
 check(!(await ev('ER.tipSkipBtn()')), 'в первый раз обучение не пропустить');
 const ai = await ev('ER.audioInfo()');
 check(ai && Object.keys(ai).filter((k) => k.startsWith('v_')).length === 4 && Object.entries(ai).filter(([k]) => k.startsWith('v_')).every(([, v]) => v.nan === 0 && v.peak > 0.2), '2 голоса × 2 дубля синтезированы без сбоев');
 await closeTips();
 await click(119, 328); check(await ev('ER.state') === 'plan', 'двор → выбор плана');
 await closeTips();
-check(tipsSeen.join() === 'gyms,energy,plans', 'подсказки про качалки, энергию и планы (' + tipsSeen.join() + ')');
+check(tipsSeen.join() === 'goal,gyms,energy,plans', 'подсказки про цель игры, качалки, энергию и планы (' + tipsSeen.join() + ')');
 await click(150, 190); await closeTips();   // в обучении — лёгкий план, чтобы точно дошло до «Ещё разок?»
 check(tipsSeen.includes('prep'), 'на подготовке — подсказка про еду и добавки');
 let r0;
