@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -1440,7 +1440,7 @@ const LEARN_SLOW = 0.2;   // первая ловля в обучении: мет
 const touchT = () => R.learn === 'catch' ? R.learnT : R.pos > 0 ? -R.pos / DESC : R.bottomT;
 function judgeTouch() {
   R.repMul = 1;
-  if (!R.started) return;
+  if (!R.started || R.learn === 'lift') return;   // пока штанга ни разу не была наверху — шкалы нет, не судим
   const tr = touchT();
   if (R.learn === 'catch') R.learn = null;   // поймал первый раз — дальше шкала обычная
   if (tr < TIM.early) { R.hit = null; return; }
@@ -1519,7 +1519,9 @@ function updateSet(dt) {
     } else {
       R.pressing = false; R.cramp = null;
       if (R.pos > 0) { R.pos = Math.max(0, R.pos - DESC * dt); R.bottomT = 0; }
-      else if (R.learn === 'release' || R.learn === 'catch') {
+      else if (R.learn === 'lift') {
+        // обучение: нажал, но не дожал до верха — штанга вернулась на грудь; лежит бесплатно, шкалы нет
+      } else if (R.learn === 'release' || R.learn === 'catch') {
         // обучение: штанга легла в первый раз — рассказываем про шкалу; лежать можно сколько угодно, силы не уходят
         if (R.learn === 'release') { R.learn = 'catch'; R.learnT = TIM.early; tip('catch'); }
         else { R.learnT += LEARN_SLOW * dt; if (R.learnT > TIM.max) R.learnT = TIM.early; }
@@ -1590,9 +1592,11 @@ function barTrack(x, top, bot, t, stuck, armed, danger) {
 }
 // Шкала попадания под дорожкой штанги: рано · ЖМИ! · поздно, метка бежит слева направо.
 const GW = 240;
+// шкала ловли видна, когда штанга подходит к груди или лежит; в обучении — только после первого подъёма наверх и когда штанга легла
+const gaugeLive = () => R.mode === 'lift' && R.started && !holding() && touchT() >= TIM.early && R.learn !== 'lift' && R.learn !== 'release';
 function touchGauge(cx, cy) {
   if (R.mode !== 'lift' || !R.started) return;
-  const live = !holding() && touchT() >= TIM.early && R.learn !== 'release', flash = R.hit && R.hit.t < 0.7 && holding();
+  const live = gaugeLive(), flash = R.hit && R.hit.t < 0.7 && holding();
   if (!live && !flash) return;
   const span = TIM.max - TIM.early, x0 = cx - GW / 2, xs = (t) => x0 + (clamp(t, TIM.early, TIM.max) - TIM.early) / span * GW;
   box(g, x0 - 7, cy - 15, GW + 14, 30, 9, 'rgba(14,15,19,.88)');
@@ -1733,7 +1737,8 @@ function drawSetHud() {
     } else if (R.atTop && holding() && R.reps <= 2) textOl(g, 'ОТПУСТИ', 520, 170, font(700, 26, FF.head), P.yellow, 6, 'center');
     // подписи внизу — левее кружка «ДЕРЖИ ПАЛЕЦ» (он справа, 620–735 по x), чтобы не наезжали
     if (R.learn === 'catch' && !holding()) textOl(g, 'Штанга лежит — силы не уходят. Жми в зелёном', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
-    else if (R.learn !== 'release' && R.started && !holding() && touchT() >= TIM.early && R.reps < R.target) textOl(g, 'Жми снова, когда метка в зелёном — так легче всего', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    else if (R.learn === 'lift' && R.started && !holding()) textOl(g, 'Держи палец, пока штанга не дойдёт до верха', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    else if (!R.learn && R.started && !holding() && touchT() >= TIM.early && R.reps < R.target) textOl(g, 'Жми снова, когда метка в зелёном — так легче всего', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
     else if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
   if (R.call) {
@@ -2377,7 +2382,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/cl
 
 // Для автопроверки: управление игрой без пальцев (звука нет: ?mute и браузер без звука).
 window.ER = {
-  get S() { return S; }, get R() { return R; }, touchT: () => touchT(), get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
+  get S() { return S; }, get R() { return R; }, touchT: () => touchT(), gaugeOn: () => gaugeLive(), get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
   pause(v) { PAUSED = v; }, go, goPlan, startSet, rackBar, callSpot, pushTap, crash,
   reset() { S = fresh(); save(); CACHE.clear(); go('title'); },
   hold(v) { if (v) { PTR.set(-1, 'hold'); if (!TIP) onPress(560, 280); } else PTR.delete(-1); },

@@ -100,6 +100,12 @@ await ev('ER.step(0.7)');
 const t0 = await ev('ER.R.t'); await ev('ER.hold(true); ER.step(1); ER.hold(false)');
 check(await ev('ER.tipId') === 'lift' && await ev('ER.R.t') === t0 && await ev('ER.R.pos') === 0, 'подсказка «как жать»: игра стоит, пока не нажмёшь «ПОНЯЛ»');
 await closeTips();
+// первый жим не до верха (не понял, что надо держать): штанга вернулась на грудь — шкалы нет, силы не уходят
+r0 = await ev(`(() => { ER.hold(true); ER.step(0.3); const up = ER.R.pos; ER.hold(false); let gd = false; for (let i = 0; i < 200 && ER.R.pos > 0; i++) { ER.step(1/60); gd = gd || ER.gaugeOn(); }
+  const f0 = ER.R.fat; let gl = false; for (let i = 0; i < 300; i++) { ER.step(1/60); gl = gl || ER.gaugeOn(); }
+  return { up: +up.toFixed(2), pos: ER.R.pos, f0, f1: ER.R.fat, gd, gl, tip: ER.tipId, mode: ER.R.mode, learn: ER.R.learn, reps: ER.R.reps }; })()`);
+await shot('03a-partial');
+check(r0.up > 0.1 && r0.up < 1 && r0.pos === 0 && r0.f1 === r0.f0 && !r0.gd && !r0.gl && !r0.tip && r0.mode === 'lift' && r0.learn === 'lift' && r0.reps === 0, 'первый жим не до верха: штанга лежит 5 с, шкалы нет, силы не уходят (' + JSON.stringify(r0) + ')');
 // первый жим обучения: наверху «Молодец, отпусти» без подсказки; про шкалу — когда штанга легла; лежать можно сколько угодно
 r0 = await ev(`(() => { ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && !ER.tipId; i++) ER.step(1/60); ER.step(0.2); return { pos: ER.R.pos, reps: ER.R.reps, tip: ER.tipId, learn: ER.R.learn }; })()`);
 await shot('03b-release');
