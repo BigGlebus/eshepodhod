@@ -175,7 +175,7 @@ await click(252, 103); check(!(await ev('ER.S.voiceOff.yygh')), 'повторн�
 
 // 5. Прокачанный герой и мотиватор: только в дожиме, штанга гарантированно уходит наверх, силы не восстанавливаются
 await ev('ER.forceCall(false)');
-await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "school"; ER.S.cans = 200; ER.S.broOpen = true; ER.startSet(110, 6, false)');
+await ev('ER.S.chest = 90; ER.S.arms = 40; ER.S.gym = "podval"; ER.S.cans = 200; ER.S.broOpen = true; ER.startSet(110, 6, false)');
 await ev(REP); await ev('ER.hold(true); ER.step(0.3)'); await shot('22-buff-set'); await ev('ER.hold(false); ER.step(0.6)');
 await click(705, 29); check(await ev('ER.R.mode') === 'lift' && await ev('ER.S.cans') === 200, 'вне дожима кнопки «Мотивация» нет');
 for (n = 0; n < 2; n++) await rep();   // пара честных повторов, дальше силы кончаются на подъёме — без случайной аварии на груди
@@ -279,6 +279,9 @@ r = await ev(`(() => { ER.forceDope(true); ER.S.gym = 'school'; ER.S.bans = {}; 
   return { doped: ER.DONE.doped, ban: ER.S.bans.school, pk: ER.R.pushK, cramp: ER.R.supp === 'test' }; })()`);
 await shot('34-doping');
 check(r.doped && r.ban === 3 && r.pk === 2, 'тестостерон: дожим ×2, допинг-контроль выгнал на 3 тренировки (' + JSON.stringify(r) + ')');
+r = await ev(`(() => { ER.forceDope(true); ER.S.gym = 'dvor'; ER.S.bans = {}; ER.startSet(50, 3, false, 'test'); ER.R.reps = 3; ER.R.gains = 10; ER.rackBar(); ER.step(1); ER.step(1.4); ER.forceDope(null);
+  return { doped: ER.DONE.doped, ban: ER.S.bans.dvor || 0, open: ER.gymOpen('dvor') }; })()`);
+check(!r.doped && !r.ban && r.open, 'тестостерон во дворе: допинг-контроля нет, не выгоняют (' + JSON.stringify(r) + ')');
 const TAP = (supp) => `(() => { ER.S.gym = 'school'; ER.startSet(60, 20, false, '${supp}'); ER.step(0.7); ER.R.fat = 0.995; ER.R.started = true; ER.hold(true); for (let i = 0; i < 300 && ER.R.mode === 'lift'; i++) ER.step(1/60); ER.hold(false); ER.R.burl = 0; ER.R.pos = 0.4; ER.tap(600, 260); return +(ER.R.pos - 0.4).toFixed(4); })()`;
 const d0 = await ev(TAP('none')), d2 = await ev(TAP('test'));
 check(Math.abs(d2 / d0 - 2) < 0.01, 'тестостерон: тап в дожиме толкает вдвое сильнее (' + d0 + ' → ' + d2 + ')');
@@ -320,6 +323,10 @@ await ev('ER.startSet(80, 20, false)'); r = await ev(PUSH); check(r.tip === 'cal
 await ev('ER.startSet(80, 20, false)'); r = await ev(PUSH); check(!r.open && !r.tip, 'до «Железяки» мотивации нет (' + JSON.stringify(r) + ')');
 await ev('ER.S.gym = "podval"; ER.startSet(80, 20, false)'); r = await ev(PUSH); check(r.open && r.tip === 'bro', 'в «Железяке» мотивация открылась — подсказка (' + JSON.stringify(r) + ')');
 await ev('ER.step(0.3)'); await shot('43-tip-bro'); await ev('ER.closeTip()');
+await ev('ER.S.gym = "school"; ER.S.tips.bro = false; ER.startSet(80, 20, false)'); r = await ev(PUSH);
+const cans0 = await ev('ER.S.cans'); await ev('ER.bro()');
+check(r.open && r.mode === 'push' && r.tip !== 'bro' && await ev('ER.R.mode') === 'push' && await ev('ER.S.cans') === cans0, 'мотивация только в «Железяке»: в школе её нет (' + JSON.stringify(r) + ')');
+await ev('ER.closeTip(); ER.S.tips.bro = true');
 r = await ev(`(() => { ER.S.chest = 26; ER.S.arms = 0; ER.S.gym = 'dvor'; ER.startSet(40, 3, false); ER.R.reps = 3; ER.R.gains = 5; ER.rackBar(); ER.step(1); ER.step(1.8); return { tip: ER.tipId, gym: ER.DONE.newGym, gyms: ER.DONE.newGyms.join() }; })()`);
 check(r.tip === 'newgym' && r.gyms === 'school,glamour', 'крепыш: открылись школа и фитнес — уведомление (' + JSON.stringify(r) + ')');
 await ev('ER.step(0.3)'); await shot('44-tip-newgym'); await ev('ER.closeTip()');

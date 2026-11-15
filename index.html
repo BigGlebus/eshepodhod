@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v16';
+const APP_VERSION = 'v17';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -1303,7 +1303,7 @@ function enterPush() {
     if (ev === 'call' && gm.dropP && (FORCE_DROP ?? Math.random() < gm.dropP)) ev = 'drop';
   }
   tip('push'); if (firstSpot) tip('spotpush');
-  if (S.broOpen && !R.broUsed) tip('bro');
+  if (broHere() && !R.broUsed) tip('bro');
   if (ev === 'call' || ev === 'story') { R.call = { t: 0, end: 0, kind: ev === 'story' ? 'story' : 'phone' }; R.bark = null; if (ev === 'call') play('ring'); tip(ev === 'story' ? 'story' : 'call'); }
   else if (ev === 'drop') { play('ring'); R.ring = 0.8; bark('drop'); }
   else if (R.noSpot) bark('heavy');
@@ -1332,8 +1332,9 @@ function callSpot() {
 // Мотивация — только в дожиме: выбегает здоровенный качок, кричит, и штанга гарантированно уходит наверх.
 // Силы она не восстанавливает: после дожима усталость такая же, как после обычного дожатого повтора.
 const BRO_FREEZE = 2.2, BRO_LAND = 0.45;   // штанга уходит наверх за 2,2 с; приземление через 0,45 с
+const broHere = () => S.broOpen && S.gym === 'podval';   // мотиватор живёт только в «Железяке»
 function callBro() {
-  if (!R || R.broUsed || S.cans < BRO_PRICE || R.mode !== 'push') return;
+  if (!R || !broHere() || R.broUsed || S.cans < BRO_PRICE || R.mode !== 'push') return;
   S.cans -= BRO_PRICE; save();
   const clip = A && A.buf.bro ? A.buf.bro.duration : 3;
   R.broUsed = true; R.bro = { t: 0, from: R.mode, fat0: R.fat, pos0: R.pos, dur: Math.max(BRO_FREEZE + 0.8, BRO_LAND + clip + 0.35) };
@@ -1744,9 +1745,11 @@ function drawAsk() {
     text(g, 'Следующий повтор растит мышцы ×' + MORE_K + '.', 0, -8, font(500, 14.5, FF.body), P.text, 'center');
     text(g, 'Сорвёшься — сгорит весь подход.', 0, 13, font(500, 14.5, FF.body), P.bad, 'center');
   } else {   // дожали, но план ещё не выполнен
-    textOl(g, 'ЖМЁМ ДАЛЬШЕ?', 0, -50, font(400, 30, FF.logo), P.yellow, 8, 'center', 'middle');
-    text(g, 'Дожал! План: ' + repLabel(R.reps) + ' из ' + R.target + ', сил почти не осталось.', 0, -8, font(500, 14.5, FF.body), P.text, 'center');
-    text(g, 'Закончишь — подход не дожат. Сорвёшься — сгорит весь.', 0, 13, font(500, 14.5, FF.body), P.bad, 'center');
+    textOl(g, 'ЖМЁМ ДАЛЬШЕ?', 0, -58, font(400, 30, FF.logo), P.yellow, 8, 'center', 'middle');
+    const af = font(500, 14.5, FF.body);   // три короткие строки — каждая влезает в рамку
+    text(g, 'Дожал! План: ' + repLabel(R.reps) + ' из ' + R.target + ', сил почти не осталось.', 0, -24, af, P.text, 'center');
+    text(g, 'Закончишь — подход не дожат.', 0, -3, af, P.bad, 'center');
+    text(g, 'Сорвёшься — сгорит весь подход.', 0, 18, af, P.bad, 'center');
   }
   g.restore();
   if (k >= 1) {
@@ -1756,7 +1759,7 @@ function drawAsk() {
 }
 // Кнопка мотивации (банки протеина).
 function broBtn(pushing) {
-  if (!S.broOpen || R.broUsed || R.mode !== 'push') return;   // только в дожиме и только после первого визита в «Железяку»
+  if (!broHere() || R.broUsed || R.mode !== 'push') return;   // только в дожиме и только в «Железяке»
   const x = 628, y = 10, w = 154, h = 38, can = S.cans >= BRO_PRICE, hotB = can && pushing;
   if (hotB) { g.save(); g.strokeStyle = 'rgba(244,193,46,.55)'; g.lineWidth = 3; const k2 = (R.t * 2) % 1; rrPath(g, x - 4 - k2 * 6, y - 4 - k2 * 6, w + 8 + k2 * 12, h + 8 + k2 * 12, 24); g.stroke(); g.restore(); }
   g.save(); g.globalAlpha = can ? 1 : 0.45;
@@ -1956,7 +1959,7 @@ function drawPlan() {
     text(g, 'рост ~+' + p.fc.gain + '  ·  банки ~+' + p.fc.cans, x + w / 2, y + 206, font(400, 13, FF.body), P.dim, 'center');
     hot(x, y, w, h, () => { PREP_FOR = p; PREP_SEL = { food: 'none', supp: 'none' }; go('prep'); });
   });
-  if (S.broOpen) text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
+  if (broHere()) text(g, 'В дожиме: «Мотивация» за ' + BRO_PRICE + ' банок — выбегает качок, и штанга гарантированно уходит наверх.', 24, 330, font(400, 12.5, FF.body), P.dim, 'left');
   text(g, 'Валера: смелее план — больше рост. Прогноз примерный.', 24, 360, font(700, 20, FF.hand), '#E9DFC6', 'left');
   text(g, 'Тапни по плану, чтобы начать', 820, 360, font(400, 13, FF.body), P.dim, 'right');
 }
@@ -1990,7 +1993,9 @@ function prepCard(item, x, y, w, h, sel, onTap) {
   else text(g, 'бесплатно', x + 64, y + 50, font(600, 12.5, FF.head), P.dim, 'left');
   let yy = y + 72; const tf = font(500, 11, FF.body);
   for (const l of wrapLines(item.plus, w - 26, tf).slice(0, 2)) { text(g, l, x + 13, yy, tf, P.good, 'left'); yy += 13; }
-  for (const l of wrapLines(item.minus, w - 26, tf).slice(0, 2)) { text(g, l, x + 13, yy, tf, item.bad ? P.bad : P.dim, 'left'); yy += 13; }
+  // во дворе никого нет — допинг-контроля тоже, остаются только судороги
+  const minus = item.id === 'test' && GYMS[S.gym].alone ? 'Судороги; во дворе допинг-контроля нет' : item.minus;
+  for (const l of wrapLines(minus, w - 26, tf).slice(0, 2)) { text(g, l, x + 13, yy, tf, item.bad ? P.bad : P.dim, 'left'); yy += 13; }
   if (sel) { blob(g, [{ k: 'ell', x: x + w - 15, y: y + 15, rx: 8, ry: 8, c: P.yellow }], 2); g.strokeStyle = INK; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(x + w - 19, y + 15); g.lineTo(x + w - 16, y + 18); g.lineTo(x + w - 11, y + 11); g.stroke(); }
   hot(x, y, w, h, onTap);
 }
