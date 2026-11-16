@@ -34,7 +34,9 @@ const res = await ev(`(() => {
       if (R.mode === 'lift') {
         ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && ER.R.mode === 'lift'; i++) ER.step(1/60);
         ER.hold(false); if (ER.R.mode !== 'lift') continue;
-        for (let i = 0; i < 200 && ER.R.pos > 0; i++) ER.step(1/60); ER.step(1/60); continue;
+        for (let i = 0; i < 200 && ER.R.pos > 0; i++) ER.step(1/60); ER.step(1/60);
+        for (let i = 0; i < 90 && ER.R.mode === 'lift' && ER.gaugeOn() && Math.abs(ER.mark() - 0.5) > 0.04; i++) ER.step(1/60);   // ловим зелёное
+        continue;
       }
       if (R.mode === 'push') { for (let i = 0; i < 80 && ER.R.mode === 'push'; i++) { ER.tap(600, 260); ER.step(0.09); } if (ER.R.mode === 'lift' || ER.R.mode === 'ask') { ER.step(0.2); if (ER.R.mode === 'ask') { ER.more(false); ER.step(1.2); } else { ER.rackBar(); ER.step(1.2); } } break; }
       if (R.mode === 'crash') break;

@@ -31,7 +31,7 @@
 (() => {
 'use strict';
 // Номер версии виден в углу стартового экрана. При обновлении меняй его и VERSION в sw.js.
-const APP_VERSION = 'v20';
+const APP_VERSION = 'v21';
 const W = 844, H = 390, TAU = Math.PI * 2;
 const INK = '#1B1C22';
 const P = {
@@ -1245,7 +1245,7 @@ function startSet(weight, target, tut, a = 'none', b = 'none') {
     pos: 0, fat: 0, burl: 0, reps: 0, red: 0, legend: 0, spotted: 0, gains: 0, armed: true, atTop: false, pressing: false,
     mode: 'lift', t: 0, idle: 0, noSpot: !!(GYMS[S.gym].maxSpot && weight > GYMS[S.gym].maxSpot), spotLeft: GYMS[S.gym].alone || (GYMS[S.gym].maxSpot && weight > GYMS[S.gym].maxSpot) ? 0 : 1, see: stageOf(buildOf(S)).i >= 3 ? 1.01 : stageOf(buildOf(S)).i === 2 ? 0.85 : 0.6, ring: 0, back: false, spotT: 0, spotFrom: 0, pushT: 0, crashT: 0, rackT: 0, impact: false, shake: 0, beat: 0,
     bark: null, barkQ: 0.7, fx: [], taps: [], redSaid: false, fogSaid: false,
-    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, late: 0 },
+    askPending: false, askT: 0, bonus: 0, extra: 0, broUsed: false, bro: null, call: null, tapCnt: 0, tapNext: 2, started: false, bottomT: 0, repMul: 1, hit: null, hits: { early: 0, perfect: 0, near: 0, miss: 0 },
     // первый жим в обучении: 'lift' — жмём вверх, 'release' — отпусти, штанга едет вниз, 'catch' — лежит на груди без расхода сил, метка ползёт медленно
     learn: tut && !S.tips.catch ? 'lift' : null, learnT: 0 };
   go('set');
@@ -1430,30 +1430,34 @@ function finishSet() {
 }
 // Задержка штанги: наверху почти бесплатно, на груди — дорого и всё дороже с каждой секундой.
 const TOP_DRAIN = 0.008, BOTTOM_DRAIN = 0.07;
-// Шкала попадания внизу. Время считается от касания груди: до касания — минус, лёжа на груди — плюс.
-// Нажал в зелёном (касание ± доля секунды) — повтор стоит как в прогнозе; рано (не дотянул до груди) или поздно (полежал) —
-// повтор всё равно засчитается наверху, но сил уйдёт больше. Выше шкалы — неполный повтор, как раньше не считается.
-const DESC = 1.2;   // скорость опускания: вся амплитуда ~0,8 с
-const TIM = { early: -0.35, ok0: -0.06, ok1: 0.06, max: 0.5 };   // зелёное окно — 0,12 с
-const TIM_COST = { early: 1.35, perfect: 1, late: 1.3 };   // в зелёном — по плану, рано и поздно — дороже
-const LEARN_SLOW = 0.2;   // первая ловля в обучении: метка ползёт в 5 раз медленнее и ходит по кругу, пока не нажмёшь
-const touchT = () => R.learn === 'catch' ? R.learnT : R.pos > 0 ? -R.pos / DESC : R.bottomT;
+// Шкала попадания внизу. Штанга легла на грудь — метка бежит по шкале туда-сюда: мимо · почти · ЖМИ! · почти · мимо.
+// Нажал в зелёном — повтор стоит как в прогнозе; «почти» и «мимо» — повтор засчитается, но сил уйдёт больше.
+// Пока метка идёт первый раз, штанга на груди не давит; промахнулся и ждёшь обратного хода — силы уходят, и всё быстрее.
+// Нажал, пока штанга ещё едет вниз (у самой груди), — «РАНО», дороже всего. Выше шкалы — неполный повтор, не считается.
+const DESC = 1.2;        // скорость опускания: вся амплитуда ~0,8 с
+const APPROACH = 0.35;   // за 0,35 с до груди шкала уже видна, метка ждёт слева
+const SWEEP = 1.0;       // метка проходит шкалу из конца в конец за 1 с и разворачивается
+const GZ = { ok: 0.1, near: 0.28 };   // от центра шкалы: зелёное ±0,1 (окно 0,2 с), «почти» до ±0,28, дальше «мимо»
+const TIM_COST = { early: 1.35, perfect: 1, near: 1.15, miss: 1.3 };
+const LEARN_SLOW = 0.2;  // первая ловля в обучении: метка ходит в 5 раз медленнее
+const approachT = () => R.pos > 0 ? R.pos / DESC : 0;   // сколько ещё ехать до груди, с
+const markPos = () => { if (R.pos > 0 && R.learn !== 'catch') return 0; const u = ((R.learn === 'catch' ? R.learnT : R.bottomT) / SWEEP) % 2; return u <= 1 ? u : 2 - u; };   // 0…1 туда-сюда
+const zoneAt = (m) => { const d = Math.abs(m - 0.5); return d <= GZ.ok ? 'perfect' : d <= GZ.near ? 'near' : 'miss'; };
 function judgeTouch() {
   R.repMul = 1;
   if (!R.started || R.learn === 'lift') return;   // пока штанга ни разу не была наверху — шкалы нет, не судим
-  const tr = touchT();
+  if (R.pos > 0 && approachT() > APPROACH) { R.hit = null; return; }   // выше шкалы — неполный повтор
+  const m = markPos(), zone = R.pos > 0 ? 'early' : zoneAt(m);
   if (R.learn === 'catch') R.learn = null;   // поймал первый раз — дальше шкала обычная
-  if (tr < TIM.early) { R.hit = null; return; }
-  const zone = tr < TIM.ok0 ? 'early' : tr <= TIM.ok1 ? 'perfect' : 'late';
   R.armed = true; R.repMul = TIM_COST[zone] / Math.max(0.3, 1 - R.pos);
-  R.hit = { zone, tr, t: 0 }; R.hits[zone]++;
+  R.hit = { zone, m, t: 0 }; R.hits[zone]++;
   if (zone === 'perfect') { fx('ИДЕАЛЬНО!', P.good, 24, 210); play('tick'); }
-  else fx(zone === 'early' ? 'РАНО' : 'ПОЗДНО', zone === 'early' ? P.yellow : P.bad, 22, 210);
+  else fx({ early: 'РАНО', near: 'ПОЧТИ', miss: 'МИМО' }[zone], zone === 'miss' ? P.bad : P.yellow, 22, 210);
 }
 const onChest = () => R.mode === 'lift' && R.started && R.pos <= 0 && !holding();
 function setMood() {
   if (R.mode === 'crash') return 'fail';
-  if (onChest() && R.bottomT > 0.35) return R.fat >= 0.6 || R.bottomT > 1.2 ? 'max' : 'strain';   // давит на грудь
+  if (onChest() && R.bottomT > SWEEP) return R.fat >= 0.6 || R.bottomT > SWEEP + 0.8 ? 'max' : 'strain';   // давит на грудь
   if (R.cramp && R.cramp.on) return 'max';
   if (R.mode === 'push') return 'max';
   if (R.mode === 'spot') return 'strain';
@@ -1523,12 +1527,13 @@ function updateSet(dt) {
         // обучение: нажал, но не дожал до верха — штанга вернулась на грудь; лежит бесплатно, шкалы нет
       } else if (R.learn === 'release' || R.learn === 'catch') {
         // обучение: штанга легла в первый раз — рассказываем про шкалу; лежать можно сколько угодно, силы не уходят
-        if (R.learn === 'release') { R.learn = 'catch'; R.learnT = TIM.early; tip('catch'); }
-        else { R.learnT += LEARN_SLOW * dt; if (R.learnT > TIM.max) R.learnT = TIM.early; }
+        if (R.learn === 'release') { R.learn = 'catch'; R.learnT = 0; tip('catch'); }
+        else R.learnT += LEARN_SLOW * dt;
       } else if (R.started) {
-        // штанга лежит на груди: силы уходят заметно, и чем дольше лежит — тем быстрее. Передержал — придавило.
+        // штанга лежит на груди: первый проход метки — бесплатно, дальше силы уходят, и чем дольше — тем быстрее. Передержал — придавило.
         R.bottomT += dt;
-        R.fat = Math.min(1, R.fat + BOTTOM_DRAIN * R.load * (R.tut ? 0.6 : 1) * (1 + 1.6 * R.bottomT) * dt / R.form);
+        const te = R.bottomT - SWEEP;
+        if (te > 0) R.fat = Math.min(1, R.fat + BOTTOM_DRAIN * R.load * (R.tut ? 0.6 : 1) * (1 + 1.6 * te) * dt / R.form);
         if (R.fat >= 1) { crash(); return; }
       }
       R.idle += dt;
@@ -1590,24 +1595,24 @@ function barTrack(x, top, bot, t, stuck, armed, danger) {
   lockIcon(g, x, top - 14, 0.9, P.text);
   blob(g, [{ k: 'ell', x, y: lerp(bot, top, t), rx: 8, ry: 8, c: stuck ? P.red : armed ? P.text : '#8B929C' }], 2);
 }
-// Шкала попадания под дорожкой штанги: рано · ЖМИ! · поздно, метка бежит слева направо.
+// Шкала попадания под дорожкой штанги: мимо · почти · ЖМИ! · почти · мимо, метка бегает туда-сюда.
 const GW = 240;
 // шкала ловли видна, когда штанга подходит к груди или лежит; в обучении — только после первого подъёма наверх и когда штанга легла
-const gaugeLive = () => R.mode === 'lift' && R.started && !holding() && touchT() >= TIM.early && R.learn !== 'lift' && R.learn !== 'release';
+const gaugeLive = () => R.mode === 'lift' && R.started && !holding() && approachT() <= APPROACH && R.learn !== 'lift' && R.learn !== 'release';
 function touchGauge(cx, cy) {
   if (R.mode !== 'lift' || !R.started) return;
   const live = gaugeLive(), flash = R.hit && R.hit.t < 0.7 && holding();
   if (!live && !flash) return;
-  const span = TIM.max - TIM.early, x0 = cx - GW / 2, xs = (t) => x0 + (clamp(t, TIM.early, TIM.max) - TIM.early) / span * GW;
+  const x0 = cx - GW / 2, xs = (m) => x0 + clamp(m, 0, 1) * GW, c0 = 0.5 - GZ.near, c1 = 0.5 - GZ.ok, c2 = 0.5 + GZ.ok, c3 = 0.5 + GZ.near;
   box(g, x0 - 7, cy - 15, GW + 14, 30, 9, 'rgba(14,15,19,.88)');
-  const zones = [[TIM.early, TIM.ok0, '#C9A12E', 'рано', 'early'], [TIM.ok0, TIM.ok1, P.good, 'ЖМИ!', 'perfect'], [TIM.ok1, TIM.max, '#B8443A', 'поздно', 'late']];
+  const zones = [[0, c0, '#B8443A', 'мимо', 'miss'], [c0, c1, '#C9A12E', 'почти', 'near'], [c1, c2, P.good, 'ЖМИ!', 'perfect'], [c2, c3, '#C9A12E', 'почти', 'near'], [c3, 1, '#B8443A', 'мимо', 'miss']];
   for (const [a, b2, col, lab, z] of zones) {
-    const xa = xs(a), xb = xs(b2), hitZ = flash && R.hit.zone === z;
+    const xa = xs(a), xb = xs(b2), hitZ = flash && (R.hit.zone === z || (R.hit.zone === 'early' && a === 0));
     g.save(); g.globalAlpha = flash && !hitZ ? 0.35 : 1; g.fillStyle = col; g.fillRect(xa, cy - 9, xb - xa, 18); g.restore();
     text(g, lab, (xa + xb) / 2, cy + 1, font(700, z === 'perfect' ? 12 : 11, FF.head), z === 'perfect' ? INK : '#FFF4DA', 'center', 'middle');
   }
   g.strokeStyle = INK; g.lineWidth = 2; g.strokeRect(x0, cy - 9, GW, 18);
-  const mx = xs(flash ? R.hit.tr : touchT());
+  const mx = xs(flash ? R.hit.m : markPos());
   g.save(); g.fillStyle = '#FFFFFF'; g.strokeStyle = INK; g.lineWidth = 2;
   g.fillRect(mx - 2.5, cy - 13, 5, 26); g.strokeRect(mx - 2.5, cy - 13, 5, 26);
   g.beginPath(); g.moveTo(mx - 9, cy - 24); g.lineTo(mx + 9, cy - 24); g.lineTo(mx, cy - 13); g.closePath(); g.fill(); g.stroke(); g.restore();
@@ -1682,7 +1687,7 @@ function drawSet() {
 function drawSetHud() {
   const pushing = R.mode === 'push', b = R.build;
   if (pushing) layer('redvig', 0, 0, W, H, (c) => { const gr = c.createRadialGradient(360, 210, 120, 360, 210, 520); gr.addColorStop(0, 'rgba(200,30,20,0)'); gr.addColorStop(1, 'rgba(200,30,20,.55)'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
-  barTrack(380, toScreen(handPos(1, b))[1], toScreen(handPos(0, b))[1], R.pos, pushing, R.armed, onChest() && R.bottomT > TIM.ok1);
+  barTrack(380, toScreen(handPos(1, b))[1], toScreen(handPos(0, b))[1], R.pos, pushing, R.armed, onChest() && R.bottomT > SWEEP);
   touchGauge(380, toScreen(handPos(0, b))[1] + 34);
   // кнопка «поставить штангу»
   const done = R.reps >= R.target, canRack = R.mode === 'lift';
@@ -1738,7 +1743,7 @@ function drawSetHud() {
     // подписи внизу — левее кружка «ДЕРЖИ ПАЛЕЦ» (он справа, 620–735 по x), чтобы не наезжали
     if (R.learn === 'catch' && !holding()) textOl(g, 'Штанга лежит — силы не уходят. Жми в зелёном', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
     else if (R.learn === 'lift' && R.started && !holding()) textOl(g, 'Держи палец, пока штанга не дойдёт до верха', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
-    else if (!R.learn && R.started && !holding() && touchT() >= TIM.early && R.reps < R.target) textOl(g, 'Жми снова, когда метка в зелёном — так легче всего', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
+    else if (!R.learn && gaugeLive() && R.reps < R.target) textOl(g, 'Метка ходит туда-сюда — жми, когда она в зелёном', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
     else if (R.fat >= 0.6 && R.reps < R.target) textOl(g, 'Шкала спряталась: смотри на лицо, дрожь и пульс', 390, 372, font(600, 16, FF.body), '#FFFFFF', 5, 'center');
   }
   if (R.call) {
@@ -2235,7 +2240,7 @@ const TIPS = {
   plans: { tut: true, title: 'ВЫБОР ПЛАНА', text: 'Три плана: ЛЕГКО, РАБОЧИЙ и НА ГРАНИ. Чем тяжелее — тем больше рост мышц и банок, но выше риск обосраться. Прогноз — на карточке. Выполнять план целиком не обязательно: штангу можно поставить в любой момент. Рост считается за каждый повтор — чем больше сделаешь, тем больше вырастешь, а за выполненный план ещё и бонус.', target: () => [24, 70, 796, 238] },
   prep: { tut: true, title: 'ПОДГОТОВКА', text: 'Успех тренировки — не случайность, а правильная подготовка. Сверху — еда: восстанавливает энергию (шаурма и бананы +50, смузи +100). Снизу — добавки: выпьешь, например, BCAA — сил будет больше и дожим сильнее. У креатина и тестостерона есть побочка. Можно взять и еду, и добавку.', target: () => [24, 60, 796, 258] },
   lift: { tut: true, title: 'КАК ЖАТЬ', text: 'Держи палец на экране — штанга идёт вверх. Дошла до верха — отпусти палец. Это повтор.', target: () => { const b = R ? R.build : 1, t = toScreen(handPos(1, b))[1], bt = toScreen(handPos(0, b))[1]; return [356, t - 28, 48, bt - t + 44]; } },
-  catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Штанга легла на грудь — вот шкала. Жми снова, когда метка в зелёном. Рано или поздно — повтор засчитается, но сил уйдёт больше. Сейчас метка ползёт медленно, потом будет быстро, а лежащая на груди штанга начнёт отнимать силы.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
+  catch: { tut: true, title: 'ЛОВИ ШТАНГУ ВНИЗУ', text: 'Штанга легла на грудь — вот шкала. Метка ходит туда-сюда: жми снова, когда она в зелёном. «Почти» и «мимо» — повтор засчитается, но сил уйдёт больше. Сейчас метка ползёт медленно, потом будет быстрее. И не жди долго: пока метка идёт первый раз, штанга не давит, а дальше начнёт отнимать силы.', target: () => [380 - GW / 2 - 12, gaugeY() - 26, GW + 24, 46] },
   yellow: { tut: true, title: 'ЖЁЛТАЯ ЗОНА', text: 'Каждый повтор теперь растит мышцы ×1,5. Но шкала сил спряталась — дальше смотри на лицо, дрожь и пульс.', target: () => [782, 58, 36, 294] },
   push: { tut: true, title: 'ДОЖИМ', text: 'Силы кончились — штанга встала. Тапай по экрану часто, чтобы дожать: такой повтор засчитается ×3. Бурлометр — это живот: перегнёшь — обосрёшься. Дожмёшь — можно закончить подход, а рискнёшь жать дальше — вырастешь больше.', target: () => [520, 80, 140, 100] },
   spot: { title: 'ЗДЕСЬ ЕСТЬ СОСЕД', text: 'Кнопка с ладонью — страховка. Раз за подход сосед поможет дожать штангу, засчитается половина повтора.', target: () => [10, 310, 68, 68] },
@@ -2383,7 +2388,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !/cl
 
 // Для автопроверки: управление игрой без пальцев (звука нет: ?mute и браузер без звука).
 window.ER = {
-  get S() { return S; }, get R() { return R; }, touchT: () => touchT(), gaugeOn: () => gaugeLive(), get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
+  get S() { return S; }, get R() { return R; }, mark: () => markPos(), gaugeOn: () => gaugeLive(), get state() { return state; }, get DONE() { return DONE; }, get PLANS() { return PLANS; },
   pause(v) { PAUSED = v; }, go, goPlan, startSet, rackBar, callSpot, pushTap, crash,
   reset() { S = fresh(); save(); CACHE.clear(); go('title'); },
   hold(v) { if (v) { PTR.set(-1, 'hold'); if (!TIP) onPress(560, 280); } else PTR.delete(-1); },

@@ -59,6 +59,7 @@ const REP = `(() => { if (ER.R.mode === 'ask') return { mode: 'ask', reps: ER.R.
   ER.hold(false);
   if (ER.R.mode !== 'lift' || ER.tipId) return { mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2), tip: ER.tipId };
   for (let i = 0; i < 200 && ER.R.pos > 0 && !ER.tipId; i++) ER.step(1/60); ER.step(1/60);
+  for (let i = 0; i < 90 && ER.R.mode === 'lift' && ER.gaugeOn() && Math.abs(ER.mark() - 0.5) > 0.04 && !ER.tipId; i++) ER.step(1/60);
   return { mode: ER.R.mode, reps: ER.R.reps, fat: +ER.R.fat.toFixed(2) }; })()`;
 // «Ещё разок?»: в первый раз — снимок и настоящий тап по «ДАВАЙ!», дальше соглашаемся программно
 let askSeen = false;
@@ -113,15 +114,16 @@ check(r0.pos === 1 && r0.reps === 1 && !r0.tip && r0.learn === 'release', 'пе�
 r0 = await ev(`(() => { ER.hold(false); ER.step(0.25); const mid = { pos: +ER.R.pos.toFixed(2), tip: ER.tipId }; for (let i = 0; i < 200 && ER.R.pos > 0 && !ER.tipId; i++) ER.step(1/60); ER.step(1/60); return { mid, pos: ER.R.pos, tip: ER.tipId, learn: ER.R.learn }; })()`);
 check(r0.mid.pos > 0 && !r0.mid.tip && r0.pos === 0 && r0.tip === 'catch' && r0.learn === 'catch', 'подсказка про шкалу — только когда штанга легла на грудь (' + JSON.stringify(r0) + ')');
 await closeTips();
-r0 = await ev(`(() => { const f0 = ER.R.fat, m0 = ER.touchT(); ER.step(0.5); const m1 = ER.touchT(); ER.step(12); return { f0, f1: ER.R.fat, mode: ER.R.mode, d: +(m1 - m0).toFixed(3) }; })()`);
+r0 = await ev(`(() => { const f0 = ER.R.fat, m0 = ER.mark(); ER.step(0.5); const m1 = ER.mark(); ER.step(12); return { f0, f1: ER.R.fat, mode: ER.R.mode, d: +(m1 - m0).toFixed(3) }; })()`);
 check(r0.f1 === r0.f0 && r0.mode === 'lift' && r0.d > 0.05 && r0.d < 0.15, 'первая ловля: штанга лежит 12 с без расхода сил, метка ползёт в 5 раз медленнее (' + JSON.stringify(r0) + ')');
-await ev(`(() => { for (let i = 0; i < 3000 && !(ER.touchT() > -0.03 && ER.touchT() < 0.03); i++) ER.step(1/60); })()`);
+await ev(`(() => { for (let i = 0; i < 3000 && !(Math.abs(ER.mark() - 0.5) < 0.03); i++) ER.step(1/60); })()`);
 await shot('04a-catch-slow');
 r0 = await ev(`(() => { ER.hold(true); ER.step(1/60); return { zone: ER.R.hit && ER.R.hit.zone, learn: ER.R.learn }; })()`);
 check(r0.zone === 'perfect' && r0.learn === null, 'медленная шкала: нажал в зелёном — «ИДЕАЛЬНО», дальше шкала обычная (' + JSON.stringify(r0) + ')');
-r0 = await ev(`(() => { for (let i = 0; i < 600 && ER.R.pos < 1 && !ER.tipId; i++) ER.step(1/60); ER.hold(false); for (let i = 0; i < 200 && ER.R.pos > 0.1; i++) ER.step(1/60); return { pos: +ER.R.pos.toFixed(2), m: +ER.touchT().toFixed(3) }; })()`);
+r0 = await ev(`(() => { for (let i = 0; i < 600 && ER.R.pos < 1 && !ER.tipId; i++) ER.step(1/60); ER.hold(false); for (let i = 0; i < 200 && ER.R.pos > 0.1; i++) ER.step(1/60);
+  const ap = ER.gaugeOn(), m0 = ER.mark(); for (let i = 0; i < 60 && ER.R.pos > 0; i++) ER.step(1/60); ER.step(0.5); return { ap, m0, m: +ER.mark().toFixed(3) }; })()`);
 await shot('04c-catch-normal');
-check(r0.m > -0.2 && r0.m < 0, 'второй раз шкала обычной скорости (' + JSON.stringify(r0) + ')');
+check(r0.ap && r0.m0 === 0 && r0.m > 0.4 && r0.m < 0.6, 'второй раз: шкала видна ещё на подходе, метка ждёт слева, дальше обычная скорость (' + JSON.stringify(r0) + ')');
 let r; let n = 0;
 for (n = 0; n < 90; n++) {
   await closeTips();
@@ -216,27 +218,31 @@ await ev('ER.forceCall(false); ER.S.gym = "school"; ER.startSet(60, 4, false)');
 await ev(REP);   // после первого жима задержки начинают стоить сил
 r = await ev('(() => { ER.hold(true); for (let i = 0; i < 300 && ER.R.pos < 1; i++) ER.step(1/60); const f0 = ER.R.fat; ER.step(3); const f1 = ER.R.fat; ER.hold(false); return [f0, f1]; })()');
 check(r[1] - r[0] < 0.05, 'держать наверху 3 с почти бесплатно (+' + (r[1] - r[0]).toFixed(3) + ')');
-r = await ev('(() => { for (let i = 0; i < 120 && ER.R.pos > 0; i++) ER.step(1/60); const f0 = ER.R.fat; ER.step(1); return [f0, ER.R.fat]; })()');
-check(r[1] - r[0] > 0.05, 'штанга на груди 1 с — силы заметно уходят (+' + (r[1] - r[0]).toFixed(3) + ')');
+r = await ev('(() => { for (let i = 0; i < 120 && ER.R.pos > 0; i++) ER.step(1/60); const f0 = ER.R.fat; ER.step(0.95); const f1 = ER.R.fat; ER.step(1.05); return [f0, f1, ER.R.fat]; })()');
+check(r[1] === r[0] && r[2] - r[1] > 0.05, 'штанга на груди: пока метка идёт первый раз — бесплатно, ещё секунда — силы заметно уходят (+' + (r[2] - r[1]).toFixed(3) + ')');
 await ev('ER.step(0.3)'); await shot('25b-chest');
 await ev('ER.step(8)'); check(await ev('ER.R.mode') === 'crash', 'передержал штангу на груди — придавило');
 
-// 5в. Шкала попадания внизу: в зелёном повтор дешевле, рано и поздно — дороже, но засчитывается; выше шкалы — не считается
+// 5в. Шкала попадания внизу: метка ходит туда-сюда; в зелёном повтор дешевле, «почти», «мимо» и «рано» — дороже, но засчитываются; выше шкалы — не считается
 await ev('ER.S.gym = "school"; ER.S.chest = 0; ER.S.arms = 0; ER.startSet(40, 20, false)');
 r = await ev(`(() => {
   const up = () => { ER.hold(true); for (let i = 0; i < 600 && ER.R.pos < 1 && ER.R.mode === 'lift'; i++) ER.step(1/60); };
   const down = (to) => { ER.hold(false); for (let i = 0; i < 300 && ER.R.pos > to; i++) ER.step(1/60); };
-  const o = {}; up();
-  down(0); ER.step(1/60); let f0 = ER.R.fat; up(); o.perfect = ER.R.fat - f0;
-  down(0.3); f0 = ER.R.fat; up(); o.early = ER.R.fat - f0;
-  down(0); ER.step(0.4); f0 = ER.R.fat; up(); o.late = ER.R.fat - f0;
-  down(0.7); f0 = ER.R.reps; up(); o.high = ER.R.reps - f0;
+  const wait = (m, e) => { for (let i = 0; i < 120 && Math.abs(ER.mark() - m) > e; i++) ER.step(1/60); };
+  const o = {}; up(); const fresh = () => { ER.R.fat = 0; };   // силы обнуляем перед каждым замером — чтобы подход не кончился дожимом
+  down(0); ER.step(0.5); o.m = [ER.mark()]; ER.step(0.5); o.m.push(ER.mark()); ER.step(0.5); o.m.push(ER.mark()); ER.step(0.5); o.m.push(ER.mark()); up();
+  fresh(); down(0); wait(0.5, 0.03); let f0 = ER.R.fat; up(); o.perfect = ER.R.fat - f0;
+  fresh(); down(0); wait(0.3, 0.025); f0 = ER.R.fat; up(); o.near = ER.R.fat - f0;
+  fresh(); down(0); ER.step(1/60); f0 = ER.R.fat; up(); o.miss = ER.R.fat - f0;
+  fresh(); down(0.3); f0 = ER.R.fat; up(); o.early = ER.R.fat - f0;
+  fresh(); down(0.7); f0 = ER.R.reps; up(); o.high = ER.R.reps - f0;
   o.hits = ER.R.hits; o.reps = ER.R.reps; o.mode = ER.R.mode; return o; })()`);
 log('  шкала:', JSON.stringify(r, (k, v) => typeof v === 'number' ? +v.toFixed(3) : v));
-check(r.hits.perfect >= 1 && r.hits.early >= 1 && r.hits.late >= 1 && r.reps === 4 && r.high === 0, 'рано, в зелёном и поздно — повтор засчитан; выше шкалы — нет');
-check(r.perfect < r.early && r.perfect < r.late, 'в зелёном повтор дешевле, чем рано или поздно');
-await ev('ER.hold(false); for (let i = 0; i < 300 && ER.R.pos > 0.15; i++) ER.step(1/60)'); await shot('25c-gauge');
-await ev('for (let i = 0; i < 60 && ER.R.pos > 0; i++) ER.step(1/60); ER.hold(true); ER.step(0.15)'); await shot('25d-gauge-hit'); await ev('ER.hold(false)');
+check(Math.abs(r.m[0] - 0.5) < 0.05 && r.m[1] > 0.95 && Math.abs(r.m[2] - 0.5) < 0.05 && r.m[3] < 0.05, 'метка ходит туда-сюда: середина → край → середина → начало (' + r.m.map((v) => v.toFixed(2)).join(' → ') + ')');
+check(r.hits.perfect >= 1 && r.hits.near >= 1 && r.hits.miss >= 2 && r.hits.early >= 1 && r.reps === 6 && r.high === 0, 'в зелёном, «почти», «мимо» и «рано» — повтор засчитан; выше шкалы — нет');
+check(r.perfect < r.miss && r.perfect < r.early, 'в зелёном повтор дешевле, чем мимо или рано');
+await ev('ER.hold(false); for (let i = 0; i < 300 && ER.R.pos > 0; i++) ER.step(1/60); ER.step(0.25)'); await shot('25c-gauge');
+await ev('for (let i = 0; i < 120 && Math.abs(ER.mark() - 0.5) > 0.03; i++) ER.step(1/60); ER.hold(true); ER.step(0.15)'); await shot('25d-gauge-hit'); await ev('ER.hold(false)');
 
 // 5г. Сброс прогресса
 await ev('ER.go("title"); ER.S.chest = 50; ER.S.cans = 333; ER.S.bans = { podval: 2 }; ER.step(0.05)');
